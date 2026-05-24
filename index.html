@@ -615,7 +615,7 @@ function saveDB(key){ save(KEYS[key],DB[key]); }
 
 // ============ AUTH ============
 document.getElementById('loginRole').onchange=function(){
-  document.getElementById('passLabel').textContent=`Password (${this.value==='admin'?'admin123':'warga123'})`;
+  document.getElementById('passLabel').textContent=`Password (${this.value==='warga'?'warga123'})`;
 };
 function doLogin(){
   const role=document.getElementById('loginRole').value;
