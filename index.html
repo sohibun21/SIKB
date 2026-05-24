@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RT Sejahtera — Sistem Iuran Warga</title>
+<title>Sistem Informasi Iuran dan Kerja Bakti — Sistem Iuran Warga</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -1454,12 +1454,12 @@ function renderPengaturan(){
   document.getElementById('pgPengaturan').innerHTML=`
     <div class="page-header"><div class="page-title">Pengaturan</div></div>
     <div class="card" style="margin-bottom:14px">
-      <div class="card-title">Informasi RT</div>
-      <div class="form-group"><label>Nama RT/RW</label><input id="sRTName" value="${s.rt_name}"></div>
+      <div class="card-title">Informasi Perumahan</div>
+      <div class="form-group"><label>NamaPerumahan</label><input id="sRTName" value="${s.rt_name}"></div>
     </div>
     <div class="card" style="margin-bottom:14px">
       <div class="card-title">Saldo Awal / Baseline Kas</div>
-      <div class="info-box info-blue">💰 Masukkan saldo kas RT yang sudah ada sebelum sistem ini digunakan. Nilai ini akan ditambahkan ke total kas yang dihitung dari iuran.</div>
+      <div class="info-box info-blue">💰 Masukkan saldo kas Perumahan yang sudah ada sebelum sistem ini digunakan. Nilai ini akan ditambahkan ke total kas yang dihitung dari iuran.</div>
       <div class="form-group"><label>Saldo Awal (Rp)</label><input type="number" id="sBaseline" value="${s.baseline_saldo||0}" placeholder="cth: 500000"></div>
       <div style="font-size:11.5px;color:var(--text3)">Jika belum ada saldo sebelumnya, isi dengan 0.</div>
     </div>
