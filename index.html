@@ -1143,7 +1143,7 @@ function renderIuran(){
       </div>
     </div>`;
 }
-async async function generateTagihan(){
+async function generateTagihan(){
   const existing=DB.iuran.filter(i=>i.bulan===THIS_MONTH&&i.tahun===THIS_YEAR).map(i=>i.warga_id);
   const baru=DB.warga.filter(w=>w.status_aktif&&!existing.includes(w.id));
   if(baru.length===0){alert('Semua tagihan bulan ini sudah dibuat.');return;}
