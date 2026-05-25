@@ -6,6 +6,7 @@
 <title>Sistem Informasi Iuran dan Kerja Bakti — Sistem Iuran Warga</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
     --bg: #f0fdf4;
@@ -530,10 +531,146 @@ function icon(name, size=16){
   return `<svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" width="${size}" height="${size}">${ICONS[name]||''}</svg>`;
 }
 
-// ============ DATA LAYER ============
+// ============ SUPABASE CONFIG ============
+// Ganti nilai di bawah ini dengan URL dan anon key Supabase Anda
+const SUPABASE_URL  = 'https://jkkmwifwucyfydnccyfl.supabase.co';
+const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impra213aWZ3dWN5ZnlkbmNjeWZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NTcxOTgsImV4cCI6MjA5NTIzMzE5OH0.JAY8a5vbaXlobLBVdzFr4CTTPmzm1-eeSwZO8wl5WYw'; // <-- isi anon key baru di sini
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ============ DATA LAYER (Supabase) ============
+// localStorage hanya sebagai cache sementara, sumber utama adalah Supabase
 const KEYS = { warga:'rt_warga', iuran:'rt_iuran', events:'rt_events', absensi:'rt_absensi', settings:'rt_settings', pengeluaran:'rt_pengeluaran' };
-function load(k){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):null; }catch{return null;} }
-function save(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
+function loadCache(k){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):null; }catch{return null;} }
+function saveCache(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
+
+// Tampilkan/sembunyikan loading overlay
+function showLoading(msg){ 
+  let el=document.getElementById('loadingOverlay');
+  if(el){ el.querySelector('p').textContent=msg||'Memuat...'; el.style.display='flex'; }
+}
+function hideLoading(){ 
+  const el=document.getElementById('loadingOverlay');
+  if(el) el.style.display='none';
+}
+function showToast(msg, ok=true){
+  let t=document.getElementById('toast');
+  if(!t){t=document.createElement('div');t.id='toast';t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:9999;transition:opacity .3s;';document.body.appendChild(t);}
+  t.textContent=msg;t.style.background=ok?'#059669':'#ef4444';t.style.color='white';t.style.opacity='1';
+  clearTimeout(t._t);t._t=setTimeout(()=>t.style.opacity='0',2500);
+}
+
+// ---- FETCH dari Supabase, cache ke localStorage ----
+async function fetchAll(){
+  showLoading('Memuat data dari server...');
+  try {
+    const [rW,rI,rE,rA,rS,rP] = await Promise.all([
+      sb.from('warga').select('*').order('nomor_rumah'),
+      sb.from('iuran').select('*').order('tahun').order('bulan'),
+      sb.from('kerja_bakti_events').select('*').order('tanggal',{ascending:false}),
+      sb.from('absensi').select('*'),
+      sb.from('settings').select('*').limit(1),
+      sb.from('pengeluaran').select('*').order('tanggal',{ascending:false}),
+    ]);
+    if(rW.error||rI.error||rE.error||rA.error) throw rW.error||rI.error||rE.error||rA.error;
+    DB.warga      = rW.data||[];
+    DB.iuran      = rI.data||[];
+    DB.events     = rE.data||[];
+    DB.absensi    = rA.data||[];
+    DB.settings   = rS.data?.[0]||{...DEFAULT_SETTINGS};
+    DB.pengeluaran= rP.data||[];
+    // cache lokal
+    saveCache(KEYS.warga, DB.warga); saveCache(KEYS.iuran, DB.iuran);
+    saveCache(KEYS.events, DB.events); saveCache(KEYS.absensi, DB.absensi);
+    saveCache(KEYS.settings, DB.settings); saveCache(KEYS.pengeluaran, DB.pengeluaran);
+  } catch(e) {
+    console.error('Supabase fetchAll error:', e);
+    // Fallback ke cache lokal jika offline
+    DB.warga      = loadCache(KEYS.warga)||[];
+    DB.iuran      = loadCache(KEYS.iuran)||[];
+    DB.events     = loadCache(KEYS.events)||[];
+    DB.absensi    = loadCache(KEYS.absensi)||[];
+    DB.settings   = loadCache(KEYS.settings)||{...DEFAULT_SETTINGS};
+    DB.pengeluaran= loadCache(KEYS.pengeluaran)||[];
+    showToast('⚠ Offline — data dari cache lokal', false);
+  }
+  hideLoading();
+}
+
+// ---- WARGA CRUD ----
+async function dbAddWarga(data){
+  const {data:d,error}=await sb.from('warga').insert([data]).select().single();
+  if(error) throw error; return d;
+}
+async function dbUpdateWarga(id,data){
+  const {error}=await sb.from('warga').update(data).eq('id',id);
+  if(error) throw error;
+}
+async function dbDeleteWarga(id){
+  const {error}=await sb.from('warga').delete().eq('id',id);
+  if(error) throw error;
+}
+
+// ---- IURAN CRUD ----
+async function dbAddIuran(rows){
+  const {error}=await sb.from('iuran').insert(rows);
+  if(error) throw error;
+}
+async function dbUpdateIuran(id,data){
+  const {error}=await sb.from('iuran').update(data).eq('id',id);
+  if(error) throw error;
+}
+async function dbDeleteIuran(id){
+  const {error}=await sb.from('iuran').delete().eq('id',id);
+  if(error) throw error;
+}
+
+// ---- EVENTS CRUD ----
+async function dbAddEvent(data){
+  const {data:d,error}=await sb.from('kerja_bakti_events').insert([data]).select().single();
+  if(error) throw error; return d;
+}
+async function dbUpdateEvent(id,data){
+  const {error}=await sb.from('kerja_bakti_events').update(data).eq('id',id);
+  if(error) throw error;
+}
+async function dbDeleteEvent(id){
+  const {error}=await sb.from('kerja_bakti_events').delete().eq('id',id);
+  if(error) throw error;
+}
+
+// ---- ABSENSI CRUD ----
+async function dbAddAbsensi(rows){
+  const {error}=await sb.from('absensi').insert(rows);
+  if(error) throw error;
+}
+async function dbUpdateAbsensi(id,data){
+  const {error}=await sb.from('absensi').update(data).eq('id',id);
+  if(error) throw error;
+}
+
+// ---- PENGELUARAN CRUD ----
+async function dbAddPengeluaran(data){
+  const {data:d,error}=await sb.from('pengeluaran').insert([data]).select().single();
+  if(error) throw error; return d;
+}
+async function dbUpdatePengeluaran(id,data){
+  const {error}=await sb.from('pengeluaran').update(data).eq('id',id);
+  if(error) throw error;
+}
+async function dbDeletePengeluaran(id){
+  const {error}=await sb.from('pengeluaran').delete().eq('id',id);
+  if(error) throw error;
+}
+
+// ---- SETTINGS ----
+async function dbUpdateSettings(data){
+  const sid=DB.settings.id;
+  if(sid){ await sb.from('settings').update(data).eq('id',sid); }
+  else { await sb.from('settings').insert([data]); }
+}
+
+// saveDB sekarang hanya update cache lokal (Supabase sudah diupdate langsung)
+function saveDB(key){ saveCache(KEYS[key], DB[key]); }
 
 // ============ SEED DATA ============
 const now = new Date();
@@ -599,24 +736,17 @@ let selectedIuranId = null;
 let selectedEventId = null;
 let chartInstance = null;
 
-function loadSettings(){ return load(KEYS.settings)||DEFAULT_SETTINGS; }
+function loadSettings(){ return loadCache(KEYS.settings)||DEFAULT_SETTINGS; }
 
-function initDB(){
-  let w=load(KEYS.warga); if(!w){w=SEED_WARGA;save(KEYS.warga,w);}
-  let iv=load(KEYS.iuran); if(!iv){iv=genIuran(w);save(KEYS.iuran,iv);}
-  let ev=load(KEYS.events); if(!ev){ev=SEED_EVENTS;save(KEYS.events,ev);}
-  let ab=load(KEYS.absensi); if(!ab){ab=genAbsensi(w,ev);save(KEYS.absensi,ab);}
-  let st=load(KEYS.settings); if(!st){st=DEFAULT_SETTINGS;save(KEYS.settings,st);}
-  let pk=load(KEYS.pengeluaran); if(!pk){pk=[];save(KEYS.pengeluaran,pk);}
-  DB={warga:w,iuran:iv,events:ev,absensi:ab,settings:st,pengeluaran:pk};
+async function initDB(){
+  await fetchAll();
 }
-function saveDB(key){ save(KEYS[key],DB[key]); }
 
 // ============ AUTH ============
 document.getElementById('loginRole').onchange=function(){
   document.getElementById('passLabel').textContent='Password';
 };
-function doLogin(){
+async function doLogin(){
   const role=document.getElementById('loginRole').value;
   const pass=document.getElementById('loginPass').value;
   if(role==='admin'&&pass!=='admin123'){document.getElementById('loginErr').textContent='Password salah';return;}
@@ -624,7 +754,7 @@ function doLogin(){
   currentUser={role};
   document.getElementById('loginPage').style.display='none';
   document.getElementById('appWrap').style.display='block';
-  initDB();
+  await initDB();
   setupNav();
   navigateTo('dashboard');
   document.getElementById('topbarDate').textContent=now.toLocaleDateString('id-ID',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
@@ -941,7 +1071,7 @@ function renderIuran(){
       </div>
     </div>`;
 }
-function generateTagihan(){
+async function generateTagihan(){
   const existing=DB.iuran.filter(i=>i.bulan===THIS_MONTH&&i.tahun===THIS_YEAR).map(i=>i.warga_id);
   const baru=DB.warga.filter(w=>w.status_aktif&&!existing.includes(w.id));
   if(baru.length===0){alert('Semua tagihan bulan ini sudah dibuat.');return;}
@@ -978,7 +1108,7 @@ function updateSelisih(){
     el.innerHTML=`<span style="color:var(--blue);font-weight:600">↑ Lebih ${fmtRp(selisih)} dari tagihan</span>`;
   }
 }
-function konfirmasiBayar(){
+async function konfirmasiBayar(){
   const nominalDibayar = +document.getElementById('fbNominal').value;
   if(!nominalDibayar || nominalDibayar <= 0) return alert('Jumlah bayar harus diisi dan lebih dari 0');
   DB.iuran=DB.iuran.map(i=>i.id===selectedIuranId?{...i,
@@ -990,9 +1120,13 @@ function konfirmasiBayar(){
   }:i);
   saveDB('iuran'); closeModal('modalBayar'); renderIuran();
 }
-function batalBayar(id){
-  DB.iuran=DB.iuran.map(i=>i.id===id?{...i,status_pembayaran:'belum_bayar',tanggal_bayar:null,metode_bayar:null}:i);
-  saveDB('iuran'); renderIuran();
+async function batalBayar(id){
+  const upd={status_pembayaran:'belum_bayar',tanggal_bayar:null,metode_bayar:null};
+  try{
+    await dbUpdateIuran(id,upd);
+    DB.iuran=DB.iuran.map(i=>i.id===id?{...i,...upd}:i);
+    saveDB('iuran'); renderIuran(); showToast('↩ Pembayaran dibatalkan');
+  }catch(e){ alert('Gagal: '+e.message); }
 }
 
 // ============ KERJA BAKTI ============
@@ -1055,7 +1189,7 @@ function openEditEvent(id){
   document.getElementById('feDesk').value=ev.deskripsi||'';
   openModal('modalEvent');
 }
-function saveEvent(){
+async function saveEvent(){
   const judul=document.getElementById('feJudul').value.trim();
   const tgl=document.getElementById('feTgl').value;
   if(!judul||!tgl) return alert('Judul dan tanggal wajib diisi');
@@ -1073,10 +1207,13 @@ function saveEvent(){
 function delEvent(id){
   document.getElementById('confirmTitle').textContent='Hapus Event';
   document.getElementById('confirmMsg').textContent='Yakin hapus event ini? Data absensi terkait juga akan dihapus.';
-  document.getElementById('confirmOkBtn').onclick=()=>{
-    DB.events=DB.events.filter(e=>e.id!==id);
-    DB.absensi=DB.absensi.filter(a=>a.event_id!==id);
-    saveDB('events'); saveDB('absensi'); closeModal('modalConfirm'); renderKerjabakti();
+  document.getElementById('confirmOkBtn').onclick=async()=>{
+    try{
+      await dbDeleteEvent(id);
+      DB.events=DB.events.filter(e=>e.id!==id);
+      DB.absensi=DB.absensi.filter(a=>a.event_id!==id);
+      saveDB('events'); saveDB('absensi'); closeModal('modalConfirm'); renderKerjabakti(); showToast('✓ Event dihapus');
+    }catch(e){ alert('Gagal hapus: '+e.message); }
   };
   openModal('modalConfirm');
 }
@@ -1575,9 +1712,12 @@ function saveSettings(){
     denda_alpha:+document.getElementById('sDendaAlpha').value,
     baseline_saldo:+document.getElementById('sBaseline').value
   };
-  saveDB('settings');
-  document.getElementById('sidebarRTName').textContent=DB.settings.rt_name;
-  alert('Pengaturan berhasil disimpan!');
+  try{
+    await dbUpdateSettings(DB.settings);
+    saveDB('settings');
+    document.getElementById('sidebarRTName').textContent=DB.settings.rt_name;
+    showToast('✓ Pengaturan disimpan');
+  }catch(e){ alert('Gagal simpan: '+e.message); }
 }
 function resetData(){
   if(!confirm('Reset semua data ke dummy? Tidak bisa dibatalkan.')) return;
@@ -1877,19 +2017,14 @@ document.querySelectorAll('.modal-bg').forEach(bg=>{
   bg.addEventListener('click',e=>{ if(e.target===bg) bg.classList.remove('show'); });
 });
 </script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
-<script>
 
-const supabaseUrl = 'https://jkkmwifwucyfydnccyfl.supabase.co'
+<!-- LOADING OVERLAY -->
+<div id="loadingOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:14px">
+  <div style="width:42px;height:42px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite"></div>
+  <p style="color:white;font-size:13px;font-weight:500">Memuat...</p>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impra213aWZ3dWN5ZnlkbmNjeWZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NTcxOTgsImV4cCI6MjA5NTIzMzE5OH0.JAY8a5vbaXlobLBVdzFr4CTTPmzm1-eeSwZO8wl5WYw'
-
-const supabase = window.supabase.createClient(
-  supabaseUrl,
-  supabaseKey
-)
-
-</script>
 </body>
 </html>
