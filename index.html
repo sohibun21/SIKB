@@ -773,7 +773,7 @@ function doLogin(){ (async()=>{
   if(role==='warga'&&pass!=='warga123'){document.getElementById('loginErr').textContent='Password salah';return;}
   
   // Cek apakah anon key sudah diisi
-  if(SUPABASE_KEY==='GANTI_DENGAN_ANON_KEY_BARU_ANDA'){
+  if(SUPABASE_KEY==='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impra213aWZ3dWN5ZnlkbmNjeWZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NTcxOTgsImV4cCI6MjA5NTIzMzE5OH0.JAY8a5vbaXlobLBVdzFr4CTTPmzm1-eeSwZO8wl5WYw'){
     document.getElementById('loginErr').textContent='⚠ Anon key Supabase belum diisi di file HTML';
     return;
   }
