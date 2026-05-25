@@ -1180,7 +1180,7 @@ function updateSelisih(){
     el.innerHTML=`<span style="color:var(--blue);font-weight:600">↑ Lebih ${fmtRp(selisih)} dari tagihan</span>`;
   }
 }
-async async function konfirmasiBayar(){
+async function konfirmasiBayar(){
   const nominalDibayar = +document.getElementById('fbNominal').value;
   if(!nominalDibayar || nominalDibayar <= 0) return alert('Jumlah bayar harus diisi dan lebih dari 0');
   DB.iuran=DB.iuran.map(i=>i.id===selectedIuranId?{...i,
@@ -1192,7 +1192,7 @@ async async function konfirmasiBayar(){
   }:i);
   saveDB('iuran'); closeModal('modalBayar'); renderIuran();
 }
-async async function batalBayar(id){
+async function batalBayar(id){
   const upd={status_pembayaran:'belum_bayar',tanggal_bayar:null,metode_bayar:null};
   try{
     await dbUpdateIuran(id,upd);
@@ -1261,7 +1261,7 @@ function openEditEvent(id){
   document.getElementById('feDesk').value=ev.deskripsi||'';
   openModal('modalEvent');
 }
-async async function saveEvent(){
+async function saveEvent(){
   const judul=document.getElementById('feJudul').value.trim();
   const tgl=document.getElementById('feTgl').value;
   if(!judul||!tgl) return alert('Judul dan tanggal wajib diisi');
@@ -1773,7 +1773,7 @@ create table absensi (
 );</pre>
     </div>`;
 }
-async async function saveSettings(){
+async function saveSettings(){
   const iuran_motor=+document.getElementById('sIuranMotor').value||30000;
   const iuran_mobil=+document.getElementById('sIuranMobil').value||50000;
   const iuran_tidak_ada=+document.getElementById('sIuranTidakAda').value||30000;
