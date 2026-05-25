@@ -562,6 +562,7 @@ function showToast(msg, ok=true){
 // ---- FETCH dari Supabase, cache ke localStorage ----
 async function fetchAll(){
   showLoading('Memuat data dari server...');
+  let konekOk = false;
   try {
     const [rW,rI,rE,rA,rS,rP] = await Promise.all([
       sb.from('warga').select('*').order('nomor_rumah'),
@@ -571,27 +572,45 @@ async function fetchAll(){
       sb.from('settings').select('*').limit(1),
       sb.from('pengeluaran').select('*').order('tanggal',{ascending:false}),
     ]);
-    if(rW.error||rI.error||rE.error||rA.error) throw rW.error||rI.error||rE.error||rA.error;
+
+    // Cek error per tabel — tampilkan pesan spesifik
+    const errDetail = [
+      rW.error && ('warga: '+rW.error.message),
+      rI.error && ('iuran: '+rI.error.message),
+      rE.error && ('events: '+rE.error.message),
+      rA.error && ('absensi: '+rA.error.message),
+    ].filter(Boolean);
+
+    if(errDetail.length){
+      console.error('Supabase error:', errDetail);
+      showToast('⚠ Error: '+errDetail[0], false);
+    } else {
+      konekOk = true;
+    }
+
     DB.warga      = rW.data||[];
     DB.iuran      = rI.data||[];
     DB.events     = rE.data||[];
     DB.absensi    = rA.data||[];
     DB.settings   = rS.data?.[0]||{...DEFAULT_SETTINGS};
     DB.pengeluaran= rP.data||[];
-    // cache lokal
-    saveCache(KEYS.warga, DB.warga); saveCache(KEYS.iuran, DB.iuran);
-    saveCache(KEYS.events, DB.events); saveCache(KEYS.absensi, DB.absensi);
-    saveCache(KEYS.settings, DB.settings); saveCache(KEYS.pengeluaran, DB.pengeluaran);
+
+    if(konekOk){
+      // update cache lokal
+      saveCache(KEYS.warga, DB.warga); saveCache(KEYS.iuran, DB.iuran);
+      saveCache(KEYS.events, DB.events); saveCache(KEYS.absensi, DB.absensi);
+      saveCache(KEYS.settings, DB.settings); saveCache(KEYS.pengeluaran, DB.pengeluaran);
+    }
   } catch(e) {
     console.error('Supabase fetchAll error:', e);
-    // Fallback ke cache lokal jika offline
+    // Fallback ke cache lokal jika offline / key salah
     DB.warga      = loadCache(KEYS.warga)||[];
     DB.iuran      = loadCache(KEYS.iuran)||[];
     DB.events     = loadCache(KEYS.events)||[];
     DB.absensi    = loadCache(KEYS.absensi)||[];
     DB.settings   = loadCache(KEYS.settings)||{...DEFAULT_SETTINGS};
     DB.pengeluaran= loadCache(KEYS.pengeluaran)||[];
-    showToast('⚠ Offline — data dari cache lokal', false);
+    showToast('⚠ Gagal konek Supabase — cek Console (F12)', false);
   }
   hideLoading();
 }
@@ -751,10 +770,32 @@ async function doLogin(){
   const pass=document.getElementById('loginPass').value;
   if(role==='admin'&&pass!=='admin123'){document.getElementById('loginErr').textContent='Password salah';return;}
   if(role==='warga'&&pass!=='warga123'){document.getElementById('loginErr').textContent='Password salah';return;}
+  
+  // Cek apakah anon key sudah diisi
+  if(SUPABASE_KEY==='GANTI_DENGAN_ANON_KEY_BARU_ANDA'){
+    document.getElementById('loginErr').textContent='⚠ Anon key Supabase belum diisi di file HTML';
+    return;
+  }
+
   currentUser={role};
   document.getElementById('loginPage').style.display='none';
   document.getElementById('appWrap').style.display='block';
-  await initDB();
+
+  try {
+    await initDB();
+  } catch(e) {
+    console.error('initDB error:', e);
+    // Tetap lanjut pakai cache lokal jika Supabase error
+    DB.warga      = loadCache(KEYS.warga)||[];
+    DB.iuran      = loadCache(KEYS.iuran)||[];
+    DB.events     = loadCache(KEYS.events)||[];
+    DB.absensi    = loadCache(KEYS.absensi)||[];
+    DB.settings   = loadCache(KEYS.settings)||{...DEFAULT_SETTINGS};
+    DB.pengeluaran= loadCache(KEYS.pengeluaran)||[];
+    hideLoading();
+    showToast('⚠ Tidak bisa konek Supabase — mode offline', false);
+  }
+
   setupNav();
   navigateTo('dashboard');
   document.getElementById('topbarDate').textContent=now.toLocaleDateString('id-ID',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
