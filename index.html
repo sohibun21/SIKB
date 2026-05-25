@@ -831,15 +831,37 @@ function openEditWarga(id){
   document.getElementById('fwStatus').value=w.status_aktif?'1':'0';
   openModal('modalWarga');
 }
-function saveWarga(){
-  const nama=document.getElementById('fwNama').value.trim();
-  const rumah=document.getElementById('fwRumah').value.trim();
-  if(!nama||!rumah) return alert('Nama dan nomor rumah wajib diisi');
-  const kategori_kendaraan=document.getElementById('fwKendaraan').value;
-  const data={nama_kepala_keluarga:nama,nomor_rumah:rumah,nomor_hp:document.getElementById('fwHp').value.trim(),status_aktif:document.getElementById('fwStatus').value==='1',kategori_kendaraan};
-  if(editWargaId){ DB.warga=DB.warga.map(w=>w.id===editWargaId?{...w,...data}:w); }
-  else { DB.warga.push({...data,id:'w'+uid(),created_at:new Date().toISOString().slice(0,10)}); }
-  saveDB('warga'); closeModal('modalWarga'); renderWarga();
+async function saveWarga(){
+
+  const nama = document.getElementById('fwNama').value.trim();
+  const rumah = document.getElementById('fwRumah').value.trim();
+
+  if(!nama || !rumah){
+    return alert('Nama dan nomor rumah wajib diisi');
+  }
+
+  const dataInsert = {
+    nama_kepala_keluarga: nama,
+    nomor_rumah: rumah,
+    nomor_hp: document.getElementById('fwHp').value.trim(),
+    kategori_kendaraan: document.getElementById('fwKendaraan').value,
+    status_aktif: document.getElementById('fwStatus').value === '1'
+  };
+
+  const { data, error } = await supabase
+    .from('warga')
+    .insert([dataInsert]);
+
+  console.log(data);
+  console.log(error);
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  alert('Data berhasil masuk ke Supabase');
+
 }
 function confirmDelWarga(id){
   const w=DB.warga.find(x=>x.id===id);
