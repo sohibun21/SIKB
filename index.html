@@ -2,6 +2,9 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sistem Informasi Iuran dan Kerja Bakti — Sistem Iuran Warga</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -560,7 +563,7 @@ function icon(name, size=16){
 
 // ============ SUPABASE CONFIG ============
 // Ganti nilai di bawah ini dengan URL dan anon key Supabase Anda
-const SUPABASE_URL  = 'https://nbljbhxpibckwrxksuuz.supabase.co';
+const SUPABASE_URL  = 'https://jkkmwifwucyfydnccyfl.supabase.co';
 const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ibGpiaHhwaWJja3dyeGtzdXV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NzM1ODQsImV4cCI6MjA5NTI0OTU4NH0._XfzlQZMNYTfxDwTXxFHbqntmlLxBXcn-HHK4UKKxEk'; // <-- isi anon key baru di sini
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -1770,7 +1773,7 @@ create table absensi (
 );</pre>
     </div>`;
 }
-async function saveSettings(){
+async async function saveSettings(){
   const iuran_motor=+document.getElementById('sIuranMotor').value||30000;
   const iuran_mobil=+document.getElementById('sIuranMobil').value||50000;
   const iuran_tidak_ada=+document.getElementById('sIuranTidakAda').value||30000;
