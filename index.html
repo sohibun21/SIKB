@@ -6,7 +6,8 @@
 <title>Sistem Informasi Iuran dan Kerja Bakti — Sistem Iuran Warga</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
 <style>
   :root {
     --bg: #f0fdf4;
@@ -535,7 +536,7 @@ function icon(name, size=16){
 // Ganti nilai di bawah ini dengan URL dan anon key Supabase Anda
 const SUPABASE_URL  = 'https://jkkmwifwucyfydnccyfl.supabase.co';
 const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impra213aWZ3dWN5ZnlkbmNjeWZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NTcxOTgsImV4cCI6MjA5NTIzMzE5OH0.JAY8a5vbaXlobLBVdzFr4CTTPmzm1-eeSwZO8wl5WYw'; // <-- isi anon key baru di sini
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ============ DATA LAYER (Supabase) ============
 // localStorage hanya sebagai cache sementara, sumber utama adalah Supabase
@@ -765,7 +766,7 @@ async function initDB(){
 document.getElementById('loginRole').onchange=function(){
   document.getElementById('passLabel').textContent='Password';
 };
-async function doLogin(){
+function doLogin(){ (async()=>{
   const role=document.getElementById('loginRole').value;
   const pass=document.getElementById('loginPass').value;
   if(role==='admin'&&pass!=='admin123'){document.getElementById('loginErr').textContent='Password salah';return;}
@@ -803,8 +804,9 @@ async function doLogin(){
   document.getElementById('sidebarRole').textContent=role==='admin'?'Bendahara':'Warga';
   document.getElementById('sidebarRoleLabel').textContent=role;
   document.getElementById('sidebarRTName').textContent=DB.settings.rt_name;
-}
+})(); }
 function doLogout(){currentUser=null;location.reload();}
+
 
 // ============ NAV ============
 const NAV_ITEMS=[
