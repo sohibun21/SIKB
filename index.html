@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SiKas — Sistem Iuran & Kerja Bakti Perumahan</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --hijau: #16a34a; --hijau-muda: #dcfce7; --hijau-tua: #14532d;
+  --kuning: #d97706; --kuning-muda: #fef3c7;
+  --merah: #dc2626; --merah-muda: #fee2e2;
+  --biru: #2563eb; --biru-muda: #dbeafe;
+  --abu: #6b7280; --abu-muda: #f3f4f6;
+  --putih: #ffffff; --gelap: #111827;
+  --bg: #f0fdf4; --border: #d1fae5;
+  --sidebar-w: 240px; --header-h: 60px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--gelap); font-size: 14px; }
+
+/* ===== LOGIN PAGE ===== */
+#login-page {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #14532d 0%, #166534 50%, #15803d 100%);
+  padding: 16px;
+}
+.login-card {
+  background: var(--putih); border-radius: 20px; padding: 40px 36px;
+  width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+}
+.login-logo { text-align: center; margin-bottom: 28px; }
+.login-logo h1 { font-size: 28px; font-weight: 700; color: var(--hijau-tua); }
+.login-logo p { font-size: 13px; color: var(--abu); margin-top: 4px; }
+.login-tabs { display: flex; background: var(--abu-muda); border-radius: 10px; padding: 4px; margin-bottom: 24px; }
+.login-tab { flex: 1; text-align: center; padding: 9px; border-radius: 7px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--abu); transition: all 0.2s; }
+.login-tab.active { background: var(--putih); color: var(--gelap); box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
+.login-btn {
+  width: 100%; padding: 12px; background: var(--hijau); color: #fff;
+  border: none; border-radius: 10px; font-size: 15px; font-weight: 700;
+  cursor: pointer; margin-top: 8px; transition: background 0.2s;
+}
+.login-btn:hover { background: #15803d; }
+.login-btn:disabled { background: var(--abu); cursor: not-allowed; }
+.login-info { background: var(--biru-muda); color: #1e40af; border-radius: 8px; padding: 10px 12px; font-size: 12px; margin-bottom: 16px; line-height: 1.6; }
+
+/* ===== APP LAYOUT ===== */
+#app { display: none; flex; min-height: 100vh; }
+#app.visible { display: flex; }
+#sidebar {
+  width: var(--sidebar-w); background: var(--hijau-tua); color: #fff;
+  position: fixed; top: 0; left: 0; height: 100vh; z-index: 100;
+  display: flex; flex-direction: column; overflow-y: auto; transition: transform 0.3s;
+}
+#main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-width: 0; }
+#header {
+  height: var(--header-h); background: var(--putih); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 24px; gap: 12px;
+  position: sticky; top: 0; z-index: 50;
+}
+#content { flex: 1; padding: 24px; }
+
+/* SIDEBAR */
+.sidebar-logo { padding: 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.sidebar-logo h1 { font-size: 18px; font-weight: 700; }
+.sidebar-logo p { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+.sidebar-user { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 10px; }
+.user-avatar { width: 34px; height: 34px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+.user-info { min-width: 0; }
+.user-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-role { font-size: 10px; opacity: 0.6; }
+.sidebar-nav { flex: 1; padding: 12px 8px; }
+.nav-section { font-size: 10px; font-weight: 600; opacity: 0.5; text-transform: uppercase; letter-spacing: 1px; padding: 8px 8px 4px; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; transition: background 0.15s; margin-bottom: 2px; color: rgba(255,255,255,0.8); }
+.nav-item:hover { background: rgba(255,255,255,0.1); color: #fff; }
+.nav-item.active { background: rgba(255,255,255,0.15); color: #fff; }
+.nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+.sidebar-footer { padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.1); }
+.logout-btn { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 12px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; color: rgba(255,255,255,0.8); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+.logout-btn:hover { background: rgba(220,38,38,0.3); color: #fff; border-color: rgba(220,38,38,0.4); }
+.conn-badge { font-size: 11px; display: flex; align-items: center; gap: 6px; opacity: 0.6; margin-top: 8px; }
+.conn-dot { width: 6px; height: 6px; border-radius: 50%; background: #6b7280; }
+.conn-dot.ok { background: #4ade80; }
+
+/* HEADER */
+.page-title { font-size: 16px; font-weight: 700; flex: 1; }
+.header-user { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--abu); }
+.role-badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.role-admin { background: var(--hijau-muda); color: var(--hijau-tua); }
+.role-warga { background: var(--biru-muda); color: #1e40af; }
+
+/* BUTTONS */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
+.btn-primary { background: var(--hijau); color: #fff; }
+.btn-primary:hover { background: #15803d; }
+.btn-secondary { background: var(--putih); color: var(--gelap); border: 1px solid #d1d5db; }
+.btn-secondary:hover { background: var(--abu-muda); }
+.btn-danger { background: var(--merah); color: #fff; }
+.btn-danger:hover { background: #b91c1c; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+/* CARDS */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.stat-card { background: var(--putih); border-radius: 12px; padding: 16px 20px; border: 1px solid var(--border); }
+.stat-label { font-size: 12px; color: var(--abu); font-weight: 500; }
+.stat-value { font-size: 24px; font-weight: 700; margin: 4px 0; }
+.stat-sub { font-size: 12px; color: var(--abu); }
+.stat-card.hijau .stat-value { color: var(--hijau); }
+.stat-card.kuning .stat-value { color: var(--kuning); }
+.stat-card.merah .stat-value { color: var(--merah); }
+.stat-card.biru .stat-value { color: var(--biru); }
+
+/* TABLE */
+.table-card { background: var(--putih); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+.table-header { padding: 16px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.table-header h3 { font-size: 15px; font-weight: 700; flex: 1; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th { background: #f9fafb; padding: 10px 14px; text-align: left; font-size: 12px; font-weight: 600; color: var(--abu); border-bottom: 1px solid var(--border); white-space: nowrap; }
+td { padding: 12px 14px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #fafafa; }
+
+/* BADGES */
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.badge-hijau { background: var(--hijau-muda); color: #166534; }
+.badge-kuning { background: var(--kuning-muda); color: #92400e; }
+.badge-merah { background: var(--merah-muda); color: #991b1b; }
+.badge-abu { background: var(--abu-muda); color: #374151; }
+.badge-biru { background: var(--biru-muda); color: #1e40af; }
+
+/* MODAL */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 16px; animation: fadeIn 0.15s; }
+@keyframes fadeIn { from { opacity: 0; } }
+.modal { background: var(--putih); border-radius: 16px; padding: 24px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; animation: slideUp 0.2s; }
+@keyframes slideUp { from { transform: translateY(16px); opacity: 0; } }
+.modal-title { font-size: 17px; font-weight: 700; margin-bottom: 20px; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--abu); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.form-control { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; font-family: inherit; transition: border 0.15s; background: var(--putih); color: var(--gelap); }
+.form-control:focus { outline: none; border-color: var(--hijau); box-shadow: 0 0 0 3px rgba(22,163,74,0.1); }
+select.form-control { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 36px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid #f3f4f6; }
+
+/* MISC */
+.progress-bar { height: 4px; background: #e5e7eb; border-radius: 2px; overflow: hidden; display: inline-block; vertical-align: middle; }
+.progress-fill { height: 100%; background: var(--hijau); border-radius: 2px; transition: width 0.3s; }
+.alert { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; line-height: 1.6; }
+.alert-info { background: var(--biru-muda); color: #1e3a8a; }
+.alert-success { background: var(--hijau-muda); color: #14532d; }
+.alert-warning { background: var(--kuning-muda); color: #92400e; }
+.filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.filter-bar select, .filter-bar input { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; background: var(--putih); }
+.empty-state { text-align: center; padding: 48px 24px; color: var(--abu); }
+.loading { display: flex; align-items: center; justify-content: center; padding: 48px; gap: 10px; color: var(--abu); }
+.spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--hijau); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#toast { position: fixed; bottom: 24px; right: 24px; z-index: 999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.toast-item { background: var(--gelap); color: #fff; padding: 12px 16px; border-radius: 10px; font-size: 13px; font-weight: 500; max-width: 320px; animation: toastIn 0.2s ease; }
+.toast-item.success { background: var(--hijau); }
+.toast-item.error { background: var(--merah); }
+@keyframes toastIn { from { transform: translateY(8px); opacity: 0; } }
+
+/* WARGA VIEW - info card */
+.info-card { background: var(--putih); border-radius: 12px; border: 1px solid var(--border); padding: 20px 24px; margin-bottom: 16px; }
+.info-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.info-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; }
+.info-row:last-child { border-bottom: none; }
+.info-label { color: var(--abu); }
+.info-value { font-weight: 600; }
+
+@media (max-width: 768px) {
+  :root { --sidebar-w: 0px; }
+  #sidebar { transform: translateX(-240px); }
+  #sidebar.open { transform: translateX(0); width: 240px; }
+  #main { margin-left: 0; }
+  .form-row { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== LOGIN PAGE ===== -->
+<div id="login-page">
+  <div class="login-card">
+    <div class="login-logo">
+      <div style="font-size:42px;margin-bottom:8px;">🏘️</div>
+      <h1>SiKas</h1>
+      <p>Sistem Iuran & Kerja Bakti Perumahan</p>
+    </div>
+    <div class="login-tabs">
+      <div class="login-tab active" onclick="switchLoginTab('admin')" id="tab-admin">👤 Admin</div>
+      <div class="login-tab" onclick="switchLoginTab('warga')" id="tab-warga">🏠 Warga</div>
+    </div>
+    <div id="login-info-admin" class="login-info">
+      Login sebagai <strong>Admin</strong> untuk mengelola seluruh data iuran, kerja bakti, dan kas perumahan.
+    </div>
+    <div id="login-info-warga" class="login-info" style="display:none">
+      Login sebagai <strong>Warga</strong> untuk melihat tagihan dan riwayat pembayaran iuran Anda.
+    </div>
+    <div class="form-group">
+      <label style="font-size:12px;font-weight:600;color:var(--abu);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px;">Email</label>
+      <input id="login-email" class="form-control" type="email" placeholder="email@contoh.com" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="form-group">
+      <label style="font-size:12px;font-weight:600;color:var(--abu);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px;">Password</label>
+      <input id="login-password" class="form-control" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div id="login-error" style="display:none;color:var(--merah);font-size:13px;margin-bottom:8px;"></div>
+    <button class="login-btn" id="login-btn" onclick="doLogin()">Masuk</button>
+    <p style="text-align:center;font-size:12px;color:var(--abu);margin-top:16px;">
+      Belum punya akun? Hubungi admin perumahan Anda.
+    </p>
+  </div>
+</div>
+
+<!-- ===== APP ===== -->
+<div id="app">
+  <aside id="sidebar">
+    <div class="sidebar-logo">
+      <h1>🏘️ SiKas</h1>
+      <p>Sistem Iuran Perumahan</p>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="sidebar-avatar">?</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebar-username">-</div>
+        <div class="user-role" id="sidebar-role">-</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav" id="sidebar-nav"></nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="doLogout()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Keluar
+      </button>
+      <div class="conn-badge"><div class="conn-dot ok" id="conn-dot"></div><span id="conn-label">Terhubung</span></div>
+    </div>
+  </aside>
+  <div id="main">
+    <header id="header">
+      <span class="page-title" id="page-title">Dashboard</span>
+      <div id="header-actions"></div>
+      <div class="header-user">
+        <span id="header-username" style="font-weight:600"></span>
+        <span class="role-badge" id="header-role-badge"></span>
+      </div>
+    </header>
+    <main id="content"><div class="loading"><div class="spinner"></div> Memuat...</div></main>
+  </div>
+</div>
+
+<div id="modal-container"></div>
+<div id="toast"></div>
+
+<script>
+// ============================================================
+// CONFIG — ganti dengan kredensial Supabase Anda
+// ============================================================
+const SUPABASE_URL = localStorage.getItem('sb_url') || 'https://nkqlqamdymjtwsbobnpo.supabase.co';
+const SUPABASE_KEY = localStorage.getItem('sb_key') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5rcWxxYW1keW1qdHdzYm9ibnBvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4NzQyMjgsImV4cCI6MjA5NTQ1MDIyOH0.aJOfKMDwoG-L8nAApT3YGsyyuOWpXyHQJ6lu3_RXCAY';
+
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ============================================================
+// STATE
+// ============================================================
+let currentUser = null;   // Supabase auth user
+let currentRole = null;   // 'admin' | 'warga'
+let currentWarga = null;  // data warga jika role=warga
+let currentPage = '';
+
+// ============================================================
+// HELPERS
+// ============================================================
+const fRp = n => 'Rp ' + (n || 0).toLocaleString('id-ID');
+const fDate = d => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+const BULAN = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+function toast(msg, type = 'info') {
+  const t = document.getElementById('toast');
+  const el = document.createElement('div');
+  el.className = `toast-item ${type}`;
+  el.textContent = msg;
+  t.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300); }, 3500);
+}
+
+function openModal(html) { document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()">${html}</div>`; }
+function closeModal() { document.getElementById('modal-container').innerHTML = ''; }
+
+function badgeStatus(s) {
+  const map = { lunas: ['badge-hijau','✓ Lunas'], sebagian: ['badge-kuning','◑ Sebagian'], belum: ['badge-merah','✗ Belum'], tidak_perlu: ['badge-biru','✓ Hadir'] };
+  const [cls, label] = map[s] || ['badge-abu', s];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function kendaraanLabel(k) {
+  return { tidak_ada:'Tidak ada', motor:'Motor', mobil:'Mobil', motor_dan_mobil:'Motor & Mobil' }[k] || k;
+}
+
+// ============================================================
+// LOGIN / AUTH
+// ============================================================
+let loginTab = 'admin';
+
+function switchLoginTab(tab) {
+  loginTab = tab;
+  document.getElementById('tab-admin').classList.toggle('active', tab === 'admin');
+  document.getElementById('tab-warga').classList.toggle('active', tab === 'warga');
+  document.getElementById('login-info-admin').style.display = tab === 'admin' ? '' : 'none';
+  document.getElementById('login-info-warga').style.display = tab === 'warga' ? '' : 'none';
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  const btn   = document.getElementById('login-btn');
+
+  if (!email || !pass) { errEl.textContent = 'Email dan password wajib diisi.'; errEl.style.display = ''; return; }
+  errEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Memuat...';
+
+  const { data, error } = await db.auth.signInWithPassword({ email, password: pass });
+
+  btn.disabled = false; btn.textContent = 'Masuk';
+
+  if (error) { errEl.textContent = 'Login gagal: ' + (error.message === 'Invalid login credentials' ? 'Email atau password salah.' : error.message); errEl.style.display = ''; return; }
+
+  await afterLogin(data.user);
+}
+
+async function afterLogin(user) {
+  currentUser = user;
+
+  // Cek role dari tabel user_roles
+  const { data: roleData } = await db.from('user_roles').select('role, warga_id').eq('user_id', user.id).single();
+
+  if (!roleData) {
+    await db.auth.signOut();
+    document.getElementById('login-error').textContent = 'Akun Anda belum terdaftar di sistem. Hubungi admin.';
+    document.getElementById('login-error').style.display = '';
+    return;
+  }
+
+  currentRole = roleData.role;
+
+  if (currentRole === 'warga') {
+    if (!roleData.warga_id) { await db.auth.signOut(); document.getElementById('login-error').textContent = 'Akun warga tidak terhubung ke data warga.'; document.getElementById('login-error').style.display = ''; return; }
+    const { data: wData } = await db.from('warga').select('*').eq('id', roleData.warga_id).single();
+    currentWarga = wData;
+  }
+
+  showApp();
+}
+
+async function doLogout() {
+  await db.auth.signOut();
+  currentUser = null; currentRole = null; currentWarga = null;
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('login-password').value = '';
+}
+
+// ============================================================
+// SHOW APP & SIDEBAR
+// ============================================================
+function showApp() {
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('app').classList.add('visible');
+
+  // User info di sidebar & header
+  const email = currentUser.email;
+  const nama  = currentRole === 'warga' && currentWarga ? currentWarga.nama : email.split('@')[0];
+  const inisial = nama.charAt(0).toUpperCase();
+
+  document.getElementById('sidebar-avatar').textContent   = inisial;
+  document.getElementById('sidebar-username').textContent = nama;
+  document.getElementById('sidebar-role').textContent     = currentRole === 'admin' ? '👑 Administrator' : '🏠 Warga';
+  document.getElementById('header-username').textContent  = nama;
+
+  const rb = document.getElementById('header-role-badge');
+  rb.textContent = currentRole === 'admin' ? 'Admin' : 'Warga';
+  rb.className   = 'role-badge ' + (currentRole === 'admin' ? 'role-admin' : 'role-warga');
+
+  buildSidebar();
+  navigate(currentRole === 'admin' ? 'dashboard' : 'warga-portal');
+}
+
+function buildSidebar() {
+  const nav = document.getElementById('sidebar-nav');
+  if (currentRole === 'admin') {
+    nav.innerHTML = `
+      <div class="nav-section">Utama</div>
+      <div class="nav-item" onclick="navigate('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard
+      </div>
+      <div class="nav-section">Data Master</div>
+      <div class="nav-item" onclick="navigate('warga')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Data Warga
+      </div>
+      <div class="nav-item" onclick="navigate('periode')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Periode
+      </div>
+      <div class="nav-item" onclick="navigate('akun')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>Kelola Akun
+      </div>
+      <div class="nav-section">Iuran & Kas</div>
+      <div class="nav-item" onclick="navigate('iuran')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Iuran Bulanan
+      </div>
+      <div class="nav-item" onclick="navigate('kerjabakti')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>Kerja Bakti
+      </div>
+      <div class="nav-item" onclick="navigate('pengeluaran')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>Pengeluaran
+      </div>
+      <div class="nav-section">Laporan</div>
+      <div class="nav-item" onclick="navigate('laporan')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Laporan Kas
+      </div>`;
+  } else {
+    nav.innerHTML = `
+      <div class="nav-section">Menu Saya</div>
+      <div class="nav-item" onclick="navigate('warga-portal')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Beranda Saya
+      </div>
+      <div class="nav-item" onclick="navigate('warga-iuran')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Iuran Saya
+      </div>
+      <div class="nav-item" onclick="navigate('warga-kerjabakti')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>Kerja Bakti Saya
+      </div>`;
+  }
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function navigate(page) {
+  currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  const pageNavMap = { dashboard: 'Dashboard', warga: 'Data Warga', periode: 'Periode', akun: 'Kelola Akun', iuran: 'Iuran Bulanan', kerjabakti: 'Kerja Bakti', pengeluaran: 'Pengeluaran Kas', laporan: 'Laporan Kas', 'warga-portal': 'Beranda Saya', 'warga-iuran': 'Iuran Saya', 'warga-kerjabakti': 'Kerja Bakti Saya' };
+  document.getElementById('page-title').textContent = pageNavMap[page] || page;
+  document.getElementById('header-actions').innerHTML = '';
+
+  // Highlight nav item
+  const items = document.querySelectorAll('.nav-item');
+  items.forEach(el => { if (el.getAttribute('onclick') && el.getAttribute('onclick').includes(`'${page}'`)) el.classList.add('active'); });
+
+  const c = document.getElementById('content');
+  c.innerHTML = '<div class="loading"><div class="spinner"></div> Memuat...</div>';
+
+  const pages = {
+    dashboard: renderDashboard, warga: renderWarga, periode: renderPeriode,
+    akun: renderAkun, iuran: renderIuran, kerjabakti: renderKerjaBakti,
+    pengeluaran: renderPengeluaran, laporan: renderLaporan,
+    'warga-portal': renderWargaPortal, 'warga-iuran': renderWargaIuran,
+    'warga-kerjabakti': renderWargaKerjaBakti,
+  };
+  if (pages[page]) pages[page]();
+}
+
+// ============================================================
+// ADMIN — DASHBOARD
+// ============================================================
+async function renderDashboard() {
+  try {
+    const now = new Date();
+    const bulan = now.getMonth() + 1, tahun = now.getFullYear();
+    const { data: periode } = await db.from('periode').select('*').eq('bulan', bulan).eq('tahun', tahun).single();
+    const { count: wargaCount } = await db.from('warga').select('*', { count: 'exact', head: true }).eq('status_aktif', true);
+
+    let iS = { lunas: 0, sebagian: 0, belum: 0, terkumpul: 0, total: 0 };
+    let kS = { hadir: 0, lunas: 0, belum: 0, terkumpul: 0 };
+    let recentBayar = [];
+
+    if (periode) {
+      const [{ data: iData }, { data: kData }] = await Promise.all([
+        db.from('iuran').select('*, warga(nama,nomor_rumah)').eq('periode_id', periode.id),
+        db.from('kerja_bakti').select('*').eq('periode_id', periode.id),
+      ]);
+      (iData || []).forEach(i => { iS.total++; iS[i.status_bayar]++; iS.terkumpul += i.nominal_dibayar || 0; });
+      (kData || []).forEach(k => { if (k.hadir) kS.hadir++; else kS[k.status_bayar]++; kS.terkumpul += k.nominal_dibayar || 0; });
+      recentBayar = (iData || []).filter(i => i.tanggal_bayar).sort((a,b) => new Date(b.tanggal_bayar)-new Date(a.tanggal_bayar)).slice(0,5);
+    }
+
+    const { data: pengeluaran } = await db.from('kas_pengeluaran').select('jumlah');
+    const totalKeluar = (pengeluaran || []).reduce((s,p) => s + p.jumlah, 0);
+    const saldo = iS.terkumpul + kS.terkumpul - totalKeluar;
+
+    document.getElementById('content').innerHTML = `
+      <div class="alert alert-info">📅 Periode aktif: <strong>${BULAN[bulan]} ${tahun}</strong>${!periode ? ' — <a href="#" onclick="navigate(\'periode\')" style="color:inherit;font-weight:700">Buat periode bulan ini →</a>' : ''}</div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Total Warga Aktif</div><div class="stat-value" style="color:var(--gelap)">${wargaCount||0}</div></div>
+        <div class="stat-card hijau"><div class="stat-label">Iuran Terkumpul</div><div class="stat-value">${fRp(iS.terkumpul)}</div><div class="stat-sub">${iS.lunas} lunas / ${iS.total} warga</div></div>
+        <div class="stat-card kuning"><div class="stat-label">Denda Kerja Bakti</div><div class="stat-value">${fRp(kS.terkumpul)}</div><div class="stat-sub">${kS.hadir} hadir, ${kS.lunas} bayar denda</div></div>
+        <div class="stat-card biru"><div class="stat-label">Saldo Kas</div><div class="stat-value">${fRp(saldo)}</div><div class="stat-sub">Pengeluaran: ${fRp(totalKeluar)}</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+        <div class="table-card"><div class="table-header"><h3>Status Iuran Bulan Ini</h3></div>
+          <div style="padding:16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
+            <div style="background:var(--hijau-muda);border-radius:8px;padding:12px;"><div style="font-size:22px;font-weight:700;color:var(--hijau)">${iS.lunas}</div><div style="font-size:11px;color:#166534">Lunas</div></div>
+            <div style="background:var(--kuning-muda);border-radius:8px;padding:12px;"><div style="font-size:22px;font-weight:700;color:var(--kuning)">${iS.sebagian}</div><div style="font-size:11px;color:#92400e">Sebagian</div></div>
+            <div style="background:var(--merah-muda);border-radius:8px;padding:12px;"><div style="font-size:22px;font-weight:700;color:var(--merah)">${iS.belum}</div><div style="font-size:11px;color:#991b1b">Belum</div></div>
+          </div>
+        </div>
+        <div class="table-card"><div class="table-header"><h3>Status Kerja Bakti</h3></div>
+          <div style="padding:16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
+            <div style="background:var(--biru-muda);border-radius:8px;padding:12px;"><div style="font-size:22px;font-weight:700;color:var(--biru)">${kS.hadir}</div><div style="font-size:11px;color:#1e40af">Hadir</div></div>
+            <div style="background:var(--hijau-muda);border-radius:8px;padding:12px;"><div style="font-size:22px;font-weight:700;color:var(--hijau)">${kS.lunas}</div><div style="font-size:11px;color:#166534">Bayar</div></div>
+            <div style="background:var(--merah-muda);border-radius:8px;padding:12px;"><div style="font-size:22px;font-weight:700;color:var(--merah)">${kS.belum}</div><div style="font-size:11px;color:#991b1b">Belum</div></div>
+          </div>
+        </div>
+      </div>
+      ${recentBayar.length ? `<div class="table-card"><div class="table-header"><h3>Pembayaran Terakhir</h3></div><div class="table-wrap"><table>
+        <thead><tr><th>Warga</th><th>Rumah</th><th>Dibayar</th><th>Status</th><th>Tanggal</th></tr></thead>
+        <tbody>${recentBayar.map(i=>`<tr><td>${i.warga?.nama||'-'}</td><td><span class="badge badge-abu">${i.warga?.nomor_rumah||'-'}</span></td><td>${fRp(i.nominal_dibayar)}</td><td>${badgeStatus(i.status_bayar)}</td><td>${fDate(i.tanggal_bayar)}</td></tr>`).join('')}</tbody>
+      </table></div></div>` : ''}`;
+  } catch(e) { document.getElementById('content').innerHTML = `<div class="alert" style="background:var(--merah-muda);color:var(--merah)">Error: ${e.message}</div>`; }
+}
+
+// ============================================================
+// ADMIN — DATA WARGA
+// ============================================================
+async function renderWarga() {
+  document.getElementById('header-actions').innerHTML = `
+    <button class="btn btn-secondary" onclick="downloadTemplateCSV()">↓ Template CSV</button>
+    <button class="btn btn-secondary" onclick="modalImportWarga()">⬆ Import CSV</button>
+    <button class="btn btn-primary" onclick="modalTambahWarga()">+ Tambah Warga</button>`;
+  const { data } = await db.from('warga').select('*').order('nomor_rumah');
+  window._wargaData = data || [];
+  const aktif = (data||[]).filter(w=>w.status_aktif);
+
+  document.getElementById('content').innerHTML = `
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+      <div class="stat-card"><div class="stat-label">Total Warga</div><div class="stat-value" style="color:var(--gelap)">${data?.length||0}</div></div>
+      <div class="stat-card hijau"><div class="stat-label">Motor (30rb)</div><div class="stat-value">${aktif.filter(w=>['motor','tidak_ada'].includes(w.kepemilikan_kendaraan)).length}</div></div>
+      <div class="stat-card kuning"><div class="stat-label">Ada Mobil (50rb)</div><div class="stat-value">${aktif.filter(w=>['mobil','motor_dan_mobil'].includes(w.kepemilikan_kendaraan)).length}</div></div>
+      <div class="stat-card merah"><div class="stat-label">Non Aktif</div><div class="stat-value">${(data||[]).filter(w=>!w.status_aktif).length}</div></div>
+    </div>
+    <div class="table-card">
+      <div class="table-header"><h3>Daftar Warga</h3>
+        <input class="form-control" style="max-width:200px" placeholder="Cari nama/rumah..." oninput="filterWarga(this.value)">
+      </div>
+      <div class="table-wrap" id="warga-table">${renderWargaTable(data||[])}</div>
+    </div>`;
+}
+
+// ============================================================
+// IMPORT WARGA — Download Template
+// ============================================================
+function downloadTemplateCSV() {
+  const header = 'nomor_rumah,nama,no_telepon,kepemilikan_kendaraan,catatan';
+  const contoh = [
+    'A-01,Budi Santoso,081234567890,motor,',
+    'A-02,Dewi Rahayu,081234567891,motor_dan_mobil,Ketua RT',
+    'A-03,Hendra Wijaya,081234567892,mobil,',
+    'B-01,Siti Nurhaliza,081234567893,tidak_ada,',
+  ].join('\n');
+  const csv = header + '\n' + contoh;
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
+  a.download = 'template-import-warga.csv';
+  a.click();
+  toast('Template CSV diunduh!', 'success');
+}
+
+// ============================================================
+// IMPORT WARGA — Modal
+// ============================================================
+function modalImportWarga() {
+  openModal(`<div class="modal" style="max-width:620px">
+    <div class="modal-title">⬆ Import Data Warga dari CSV</div>
+
+    <div style="background:var(--biru-muda);color:#1e40af;border-radius:8px;padding:12px 14px;font-size:12px;margin-bottom:16px;line-height:1.8">
+      <strong>Format kolom CSV (urutan bebas, header wajib ada):</strong><br>
+      • <code>nomor_rumah</code> — wajib, contoh: A-01<br>
+      • <code>nama</code> — wajib, nama lengkap warga<br>
+      • <code>no_telepon</code> — opsional<br>
+      • <code>kepemilikan_kendaraan</code> — <code>motor</code> / <code>mobil</code> / <code>motor_dan_mobil</code> / <code>tidak_ada</code><br>
+      • <code>catatan</code> — opsional<br>
+      <strong>Tips:</strong> Klik "↓ Template CSV" untuk file contoh yang bisa langsung diisi di Excel/Google Sheets.
+    </div>
+
+    <div id="import-drop-zone" onclick="document.getElementById('import-file-input').click()"
+      style="border:2px dashed #d1d5db;border-radius:10px;padding:32px;text-align:center;cursor:pointer;transition:all 0.2s;margin-bottom:16px"
+      ondragover="event.preventDefault();this.style.borderColor='var(--hijau)';this.style.background='var(--hijau-muda)'"
+      ondragleave="this.style.borderColor='#d1d5db';this.style.background=''"
+      ondrop="handleImportDrop(event)">
+      <div style="font-size:32px;margin-bottom:8px">📂</div>
+      <div style="font-weight:600;color:var(--gelap)">Klik atau drag & drop file CSV di sini</div>
+      <div style="font-size:12px;color:var(--abu);margin-top:4px">Format: .csv (UTF-8 atau Excel CSV)</div>
+    </div>
+    <input type="file" id="import-file-input" accept=".csv" style="display:none" onchange="handleImportFile(this.files[0])">
+
+    <div id="import-preview" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <strong id="import-preview-title" style="font-size:13px"></strong>
+        <button class="btn btn-secondary btn-sm" onclick="resetImport()">✕ Ganti File</button>
+      </div>
+      <div style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:8px">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr>
+            <th style="background:#f9fafb;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border)">#</th>
+            <th style="background:#f9fafb;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border)">No. Rumah</th>
+            <th style="background:#f9fafb;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border)">Nama</th>
+            <th style="background:#f9fafb;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border)">Telepon</th>
+            <th style="background:#f9fafb;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border)">Kendaraan</th>
+            <th style="background:#f9fafb;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border)">Status</th>
+          </tr></thead>
+          <tbody id="import-preview-body"></tbody>
+        </table>
+      </div>
+      <div id="import-errors" style="margin-top:8px;display:none"></div>
+    </div>
+
+    <div id="import-progress" style="display:none;margin-top:12px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">
+        <span id="import-progress-label">Mengimpor...</span>
+        <span id="import-progress-pct">0%</span>
+      </div>
+      <div style="height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden">
+        <div id="import-progress-bar" style="height:100%;background:var(--hijau);border-radius:4px;width:0%;transition:width 0.3s"></div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn btn-primary" id="btn-import" onclick="jalankanImport()" style="display:none">Import <span id="import-count">0</span> Warga</button>
+    </div>
+  </div>`);
+}
+
+function handleImportDrop(e) {
+  e.preventDefault();
+  document.getElementById('import-drop-zone').style.borderColor = '#d1d5db';
+  document.getElementById('import-drop-zone').style.background = '';
+  const file = e.dataTransfer.files[0];
+  if (file && file.name.endsWith('.csv')) handleImportFile(file);
+  else toast('Hanya file .csv yang didukung!', 'error');
+}
+
+function handleImportFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    parseAndPreviewCSV(text);
+  };
+  // Coba baca sebagai UTF-8 dulu, fallback ke latin1 jika ada masalah encoding
+  reader.readAsText(file, 'UTF-8');
+}
+
+const VALID_KENDARAAN = ['motor', 'mobil', 'motor_dan_mobil', 'tidak_ada'];
+
+function parseAndPreviewCSV(text) {
+  // Hapus BOM jika ada
+  text = text.replace(/^\uFEFF/, '');
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) { toast('File CSV kosong atau hanya berisi header!', 'error'); return; }
+
+  // Parse header (case-insensitive, trim spaces)
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g,'_'));
+  const idxRumah    = headers.indexOf('nomor_rumah');
+  const idxNama     = headers.indexOf('nama');
+  const idxTelp     = headers.indexOf('no_telepon');
+  const idxKendar   = headers.indexOf('kepemilikan_kendaraan');
+  const idxCatatan  = headers.indexOf('catatan');
+
+  if (idxRumah === -1 || idxNama === -1) {
+    toast('Kolom "nomor_rumah" dan "nama" wajib ada di header CSV!', 'error'); return;
+  }
+
+  const rows = [], errors = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCSVLine(lines[i]);
+    const nomor_rumah = (cols[idxRumah] || '').trim();
+    const nama        = (cols[idxNama] || '').trim();
+    const no_telepon  = idxTelp >= 0 ? (cols[idxTelp] || '').trim() : '';
+    let   kendaraan   = idxKendar >= 0 ? (cols[idxKendar] || '').trim().toLowerCase().replace(/\s/g,'_') : 'motor';
+    const catatan     = idxCatatan >= 0 ? (cols[idxCatatan] || '').trim() : '';
+
+    const rowErrors = [];
+    if (!nomor_rumah) rowErrors.push('nomor_rumah kosong');
+    if (!nama) rowErrors.push('nama kosong');
+    if (!VALID_KENDARAAN.includes(kendaraan)) {
+      // coba auto-koreksi umum
+      if (['motor & mobil','motor dan mobil','both'].includes(kendaraan)) kendaraan = 'motor_dan_mobil';
+      else if (['car','mobil saja'].includes(kendaraan)) kendaraan = 'mobil';
+      else if (['tidak ada','none','0','-'].includes(kendaraan)) kendaraan = 'tidak_ada';
+      else { kendaraan = 'motor'; rowErrors.push(`kendaraan tidak dikenal, diset ke "motor"`); }
+    }
+
+    rows.push({ nomor_rumah, nama, no_telepon: no_telepon || null, kepemilikan_kendaraan: kendaraan, catatan: catatan || null, status_aktif: true, valid: rowErrors.length === 0, errors: rowErrors });
+    if (rowErrors.length) errors.push(`Baris ${i+1}: ${rowErrors.join(', ')}`);
+  }
+
+  window._importRows = rows;
+  const validRows = rows.filter(r => r.valid);
+
+  // Tampilkan preview
+  document.getElementById('import-drop-zone').style.display = 'none';
+  document.getElementById('import-preview').style.display = '';
+  document.getElementById('import-preview-title').textContent = `${rows.length} baris ditemukan — ${validRows.length} siap import, ${rows.length - validRows.length} ada peringatan`;
+  document.getElementById('import-count').textContent = validRows.length;
+  document.getElementById('btn-import').style.display = validRows.length ? '' : 'none';
+
+  document.getElementById('import-preview-body').innerHTML = rows.map((r,i) => `<tr style="background:${r.valid?'':'#fffbeb'}">
+    <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;color:var(--abu)">${i+1}</td>
+    <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6"><span style="background:var(--abu-muda);padding:2px 7px;border-radius:12px;font-size:11px;font-weight:600">${r.nomor_rumah||'⚠️ kosong'}</span></td>
+    <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;font-weight:500">${r.nama||'<span style="color:var(--merah)">⚠️ kosong</span>'}</td>
+    <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;color:var(--abu)">${r.no_telepon||'-'}</td>
+    <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6">${kendaraanLabel(r.kepemilikan_kendaraan)}</td>
+    <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6">${r.valid ? '<span style="color:var(--hijau);font-weight:600">✓ OK</span>' : `<span style="color:var(--kuning);font-size:11px">⚠ ${r.errors.join('; ')}</span>`}</td>
+  </tr>`).join('');
+
+  if (errors.length) {
+    document.getElementById('import-errors').style.display = '';
+    document.getElementById('import-errors').innerHTML = `<div style="background:var(--kuning-muda);color:#92400e;border-radius:8px;padding:10px 12px;font-size:12px">
+      <strong>⚠️ ${errors.length} peringatan (baris dengan warning tetap diimpor dengan koreksi otomatis):</strong><br>${errors.join('<br>')}
+    </div>`;
+  }
+}
+
+// Parse CSV dengan dukungan nilai yang mengandung koma dalam tanda kutip
+function parseCSVLine(line) {
+  const result = []; let cur = ''; let inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQuote = !inQuote; }
+    else if (ch === ',' && !inQuote) { result.push(cur); cur = ''; }
+    else { cur += ch; }
+  }
+  result.push(cur);
+  return result.map(v => v.replace(/^"|"$/g,'').trim());
+}
+
+function resetImport() {
+  window._importRows = [];
+  document.getElementById('import-drop-zone').style.display = '';
+  document.getElementById('import-preview').style.display = 'none';
+  document.getElementById('import-errors').style.display = 'none';
+  document.getElementById('btn-import').style.display = 'none';
+  document.getElementById('import-file-input').value = '';
+}
+
+async function jalankanImport() {
+  const rows = (window._importRows || []).filter(r => r.valid || r.nomor_rumah && r.nama);
+  if (!rows.length) return toast('Tidak ada data valid untuk diimport!', 'error');
+
+  document.getElementById('btn-import').disabled = true;
+  document.getElementById('import-progress').style.display = '';
+
+  const batchSize = 10;
+  let sukses = 0, gagal = 0;
+
+  for (let i = 0; i < rows.length; i += batchSize) {
+    const batch = rows.slice(i, i + batchSize).map(r => ({
+      nomor_rumah: r.nomor_rumah, nama: r.nama,
+      no_telepon: r.no_telepon || null,
+      kepemilikan_kendaraan: r.kepemilikan_kendaraan,
+      catatan: r.catatan || null, status_aktif: true
+    }));
+
+    const { error } = await db.from('warga').upsert(batch, { onConflict: 'nomor_rumah', ignoreDuplicates: false });
+    if (error) { gagal += batch.length; console.error('Import error:', error); }
+    else sukses += batch.length;
+
+    const pct = Math.round((i + batchSize) / rows.length * 100);
+    document.getElementById('import-progress-bar').style.width = Math.min(pct, 100) + '%';
+    document.getElementById('import-progress-pct').textContent = Math.min(pct, 100) + '%';
+    document.getElementById('import-progress-label').textContent = `Mengimpor ${Math.min(i+batchSize, rows.length)} dari ${rows.length}...`;
+  }
+
+  document.getElementById('import-progress-bar').style.width = '100%';
+  document.getElementById('import-progress-label').textContent = `Selesai! ${sukses} berhasil${gagal ? `, ${gagal} gagal` : ''}.`;
+
+  if (sukses > 0) toast(`✅ ${sukses} warga berhasil diimport!`, 'success');
+  if (gagal > 0) toast(`⚠️ ${gagal} warga gagal (mungkin nomor rumah duplikat).`, 'error');
+
+  setTimeout(() => { closeModal(); renderWarga(); }, 1500);
+}
+
+function renderWargaTable(data) {
+  if (!data.length) return '<div class="empty-state"><p>Belum ada data warga</p></div>';
+  return `<table><thead><tr><th>No. Rumah</th><th>Nama</th><th>Telepon</th><th>Kendaraan</th><th>Iuran/Bln</th><th>Status</th><th>Aksi</th></tr></thead><tbody>
+    ${data.map(w=>`<tr>
+      <td><span class="badge badge-abu">${w.nomor_rumah}</span></td>
+      <td><strong>${w.nama}</strong></td>
+      <td>${w.no_telepon||'-'}</td>
+      <td>${kendaraanLabel(w.kepemilikan_kendaraan)}</td>
+      <td><strong>${fRp(w.nominal_iuran)}</strong></td>
+      <td>${w.status_aktif?'<span class="badge badge-hijau">Aktif</span>':'<span class="badge badge-abu">Non-aktif</span>'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-secondary btn-sm" onclick='modalEditWarga(${JSON.stringify(w)})'>Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="hapusWarga('${w.id}','${w.nama}')">Hapus</button>
+      </td>
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+
+function filterWarga(q) {
+  const data = (window._wargaData||[]).filter(w=>!q||w.nama.toLowerCase().includes(q.toLowerCase())||w.nomor_rumah.toLowerCase().includes(q.toLowerCase()));
+  document.getElementById('warga-table').innerHTML = renderWargaTable(data);
+}
+
+function modalTambahWarga() {
+  openModal(`<div class="modal"><div class="modal-title">Tambah Warga Baru</div>
+    <div class="form-row">
+      <div class="form-group"><label>Nama Lengkap *</label><input id="f-nama" class="form-control" placeholder="Budi Santoso"></div>
+      <div class="form-group"><label>No. Rumah *</label><input id="f-rumah" class="form-control" placeholder="A-01"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>No. Telepon</label><input id="f-telp" class="form-control" placeholder="08xxxxxxxxxx"></div>
+      <div class="form-group"><label>Kendaraan *</label>
+        <select id="f-kendaraan" class="form-control">
+          <option value="motor">Motor (Rp 30.000)</option>
+          <option value="motor_dan_mobil">Motor & Mobil (Rp 50.000)</option>
+          <option value="mobil">Mobil (Rp 50.000)</option>
+          <option value="tidak_ada">Tidak Ada (Rp 30.000)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Catatan</label><input id="f-catatan" class="form-control"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn btn-primary" onclick="simpanWarga()">Simpan</button>
+    </div>
+  </div>`);
+}
+
+function modalEditWarga(w) {
+  openModal(`<div class="modal"><div class="modal-title">Edit Warga — ${w.nama}</div>
+    <div class="form-row">
+      <div class="form-group"><label>Nama *</label><input id="f-nama" class="form-control" value="${w.nama}"></div>
+      <div class="form-group"><label>No. Rumah *</label><input id="f-rumah" class="form-control" value="${w.nomor_rumah}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Telepon</label><input id="f-telp" class="form-control" value="${w.no_telepon||''}"></div>
+      <div class="form-group"><label>Kendaraan</label>
+        <select id="f-kendaraan" class="form-control">
+          <option value="motor" ${w.kepemilikan_kendaraan==='motor'?'selected':''}>Motor (30rb)</option>
+          <option value="motor_dan_mobil" ${w.kepemilikan_kendaraan==='motor_dan_mobil'?'selected':''}>Motor & Mobil (50rb)</option>
+          <option value="mobil" ${w.kepemilikan_kendaraan==='mobil'?'selected':''}>Mobil (50rb)</option>
+          <option value="tidak_ada" ${w.kepemilikan_kendaraan==='tidak_ada'?'selected':''}>Tidak Ada (30rb)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Catatan</label><input id="f-catatan" class="form-control" value="${w.catatan||''}"></div>
+      <div class="form-group"><label>Status</label>
+        <select id="f-status" class="form-control">
+          <option value="true" ${w.status_aktif?'selected':''}>Aktif</option>
+          <option value="false" ${!w.status_aktif?'selected':''}>Non-aktif</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn btn-primary" onclick="updateWarga('${w.id}')">Simpan</button>
+    </div>
+  </div>`);
+}
+
+async function simpanWarga() {
+  const data = { nama: document.getElementById('f-nama').value.trim(), nomor_rumah: document.getElementById('f-rumah').value.trim(), no_telepon: document.getElementById('f-telp').value.trim(), kepemilikan_kendaraan: document.getElementById('f-kendaraan').value, catatan: document.getElementById('f-catatan').value.trim(), status_aktif: true };
+  if (!data.nama || !data.nomor_rumah) return toast('Nama dan No. Rumah wajib diisi!', 'error');
+  const { error } = await db.from('warga').insert(data);
+  if (error) return toast('Gagal: ' + error.message, 'error');
+  toast('Warga ditambahkan!', 'success'); closeModal(); renderWarga();
+}
+
+async function updateWarga(id) {
+  const data = { nama: document.getElementById('f-nama').value.trim(), nomor_rumah: document.getElementById('f-rumah').value.trim(), no_telepon: document.getElementById('f-telp').value.trim(), kepemilikan_kendaraan: document.getElementById('f-kendaraan').value, catatan: document.getElementById('f-catatan').value.trim(), status_aktif: document.getElementById('f-status').value === 'true' };
+  const { error } = await db.from('warga').update(data).eq('id', id);
+  if (error) return toast('Gagal: ' + error.message, 'error');
+  toast('Data diperbarui!', 'success'); closeModal(); renderWarga();
+}
+
+async function hapusWarga(id, nama) {
+  if (!confirm(`Hapus warga "${nama}"?`)) return;
+  const { error } = await db.from('warga').delete().eq('id', id);
+  if (error) return toast('Gagal: ' + error.message, 'error');
+  toast('Warga dihapus.', 'success'); renderWarga();
+}
+
+// ============================================================
+// ADMIN — KELOLA AKUN
+// ============================================================
+async function renderAkun() {
+  document.getElementById('header-actions').innerHTML = `<button class="btn btn-primary" onclick="modalTambahAkun()">+ Tambah Akun</button>`;
+  const { data: roles } = await db.from('user_roles').select('*, warga(nama, nomor_rumah)').order('created_at');
+  document.getElementById('content').innerHTML = `
+    <div class="alert alert-info">
+      💡 <strong>Cara kerja akun:</strong> Admin mendaftarkan email & password untuk setiap warga.
+      Warga login lalu hanya bisa melihat data tagihan milik sendiri.
+    </div>
+    <div class="alert" style="background:var(--kuning-muda);color:#92400e;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;">
+      ⚠️ <strong>Catatan keamanan:</strong> Pembuatan akun menggunakan <code>signUp</code> biasa.
+      Pastikan fitur <strong>Email Confirmations</strong> di Supabase <strong>dimatikan</strong>
+      (Auth → Providers → Email → disable "Confirm email") agar akun langsung aktif.
+    </div>
+    <div class="table-card">
+      <div class="table-header"><h3>Daftar Akun (${(roles||[]).length})</h3></div>
+      <div class="table-wrap">${!(roles||[]).length ? '<div class="empty-state"><p>Belum ada akun terdaftar</p></div>' : `<table>
+        <thead><tr><th>Email</th><th>Role</th><th>Terhubung ke Warga</th><th>Terdaftar</th><th>Aksi</th></tr></thead>
+        <tbody>${roles.map(r=>`<tr>
+          <td><strong>${r.email||'-'}</strong></td>
+          <td>${r.role==='admin'?'<span class="badge badge-hijau">👑 Admin</span>':'<span class="badge badge-biru">🏠 Warga</span>'}</td>
+          <td>${r.warga?`<span class="badge badge-abu">${r.warga.nomor_rumah}</span> ${r.warga.nama}`:'<span class="badge badge-abu">-</span>'}</td>
+          <td>${fDate(r.created_at)}</td>
+          <td><button class="btn btn-danger btn-sm" onclick="hapusAkun('${r.id}','${r.email}','${r.user_id}')">Hapus</button></td>
+        </tr>`).join('')}</tbody>
+      </table>`}</div>
+    </div>`;
+}
+
+function modalTambahAkun() {
+  db.from('warga').select('id, nama, nomor_rumah').eq('status_aktif', true).order('nomor_rumah').then(({ data: wList }) => {
+    openModal(`<div class="modal">
+      <div class="modal-title">Tambah Akun Login</div>
+      <div class="form-group"><label>Role *</label>
+        <select id="f-role" class="form-control" onchange="toggleWargaField(this.value)">
+          <option value="warga">🏠 Warga</option>
+          <option value="admin">👑 Admin</option>
+        </select>
+      </div>
+      <div class="form-group" id="f-warga-group"><label>Data Warga *</label>
+        <select id="f-warga-id" class="form-control">
+          <option value="">-- Pilih Warga --</option>
+          ${(wList||[]).map(w=>`<option value="${w.id}">[${w.nomor_rumah}] ${w.nama}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label>Email *</label><input id="f-email" class="form-control" type="email" placeholder="email@contoh.com"></div>
+      <div class="form-group"><label>Password *</label>
+        <div style="position:relative">
+          <input id="f-pass" class="form-control" type="password" placeholder="Min. 6 karakter" style="padding-right:42px">
+          <span onclick="togglePassVis()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--abu);font-size:13px" id="pass-eye">👁</span>
+        </div>
+      </div>
+      <div id="akun-error" style="color:var(--merah);font-size:13px;display:none;margin-bottom:8px"></div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">Batal</button>
+        <button class="btn btn-primary" id="btn-buat-akun" onclick="simpanAkun()">Buat Akun</button>
+      </div>
+    </div>`);
+  });
+}
+
+function toggleWargaField(val) {
+  document.getElementById('f-warga-group').style.display = val === 'warga' ? '' : 'none';
+}
+
+function togglePassVis() {
+  const inp = document.getElementById('f-pass');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+async function simpanAkun() {
+  const role    = document.getElementById('f-role').value;
+  const email   = document.getElementById('f-email').value.trim();
+  const pass    = document.getElementById('f-pass').value;
+  const wargaId = document.getElementById('f-warga-id')?.value || null;
+  const errEl   = document.getElementById('akun-error');
+  const btn     = document.getElementById('btn-buat-akun');
+
+  errEl.style.display = 'none';
+  if (!email || !pass) { errEl.textContent = 'Email dan password wajib diisi!'; errEl.style.display = ''; return; }
+  if (pass.length < 6) { errEl.textContent = 'Password minimal 6 karakter!'; errEl.style.display = ''; return; }
+  if (role === 'warga' && !wargaId) { errEl.textContent = 'Pilih data warga terlebih dahulu!'; errEl.style.display = ''; return; }
+
+  btn.disabled = true; btn.textContent = 'Membuat akun...';
+
+  // Simpan session admin saat ini sebelum signUp (signUp bisa mengganti session)
+  const { data: { session: adminSession } } = await db.auth.getSession();
+
+  // SignUp user baru — ini akan mengganti session aktif sementara
+  const { data: signUpData, error: signUpErr } = await db.auth.signUp({ email, password: pass });
+
+  if (signUpErr) {
+    btn.disabled = false; btn.textContent = 'Buat Akun';
+    errEl.textContent = 'Gagal: ' + (signUpErr.message.includes('already registered') ? 'Email sudah terdaftar.' : signUpErr.message);
+    errEl.style.display = ''; return;
+  }
+
+  const newUserId = signUpData.user?.id;
+  if (!newUserId) {
+    btn.disabled = false; btn.textContent = 'Buat Akun';
+    errEl.textContent = 'Gagal mendapatkan user ID. Pastikan Email Confirmations dimatikan di Supabase.';
+    errEl.style.display = ''; return;
+  }
+
+  // Insert role ke tabel user_roles
+  const { error: roleErr } = await db.from('user_roles').insert({
+    user_id: newUserId, email, role,
+    warga_id: role === 'warga' ? wargaId : null
+  });
+
+  // Kembalikan session admin
+  if (adminSession) {
+    await db.auth.setSession({ access_token: adminSession.access_token, refresh_token: adminSession.refresh_token });
+  }
+
+  if (roleErr) {
+    btn.disabled = false; btn.textContent = 'Buat Akun';
+    errEl.textContent = 'User dibuat tapi role gagal disimpan: ' + roleErr.message;
+    errEl.style.display = ''; return;
+  }
+
+  toast('Akun berhasil dibuat! 🎉', 'success');
+  closeModal();
+  renderAkun();
+}
+
+async function hapusAkun(roleId, email, userId) {
+  if (!confirm(`Hapus akun "${email}"?\nUser tidak bisa login lagi.`)) return;
+  // Hapus dari user_roles dulu (cascade dari auth.users tidak otomatis dari sini)
+  const { error } = await db.from('user_roles').delete().eq('id', roleId);
+  if (error) return toast('Gagal: ' + error.message, 'error');
+  toast('Akun dihapus dari sistem.', 'success');
+  renderAkun();
+}
+
+// ============================================================
+// ADMIN — PERIODE
+// ============================================================
+async function renderPeriode() {
+  document.getElementById('header-actions').innerHTML = `<button class="btn btn-primary" onclick="modalTambahPeriode()">+ Buat Periode</button>`;
+  const { data } = await db.from('periode').select('*').order('tahun', { ascending: false }).order('bulan', { ascending: false });
+  document.getElementById('content').innerHTML = `
+    <div class="alert alert-info">💡 Membuat periode baru akan otomatis men-generate tagihan iuran & kerja bakti untuk semua warga aktif.</div>
+    <div class="table-card">
+      <div class="table-header"><h3>Daftar Periode</h3></div>
+      <div class="table-wrap">${!data?.length ? '<div class="empty-state"><p>Belum ada periode</p></div>' : `<table>
+        <thead><tr><th>Periode</th><th>Tgl Kerja Bakti</th><th>Keterangan</th><th>Aksi</th></tr></thead>
+        <tbody>${data.map(p=>`<tr>
+          <td><strong>${p.nama_periode}</strong></td>
+          <td>${fDate(p.tanggal_kerja_bakti)}</td>
+          <td>${p.keterangan||'-'}</td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-secondary btn-sm" onclick="navigate('iuran');window._jumpPeriode='${p.id}'">Iuran</button>
+            <button class="btn btn-secondary btn-sm" onclick="navigate('kerjabakti');window._jumpPeriode='${p.id}'">KB</button>
+          </td>
+        </tr>`).join('')}</tbody>
+      </table>`}</div>
+    </div>`;
+}
+
+function modalTambahPeriode() {
+  const now = new Date();
+  openModal(`<div class="modal"><div class="modal-title">Buat Periode Baru</div>
+    <div class="form-row">
+      <div class="form-group"><label>Bulan *</label>
+        <select id="f-bulan" class="form-control">
+          ${BULAN.slice(1).map((b,i)=>`<option value="${i+1}" ${now.getMonth()+1===i+1?'selected':''}>${b}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label>Tahun *</label><input id="f-tahun" class="form-control" type="number" value="${now.getFullYear()}"></div>
+    </div>
+    <div class="form-group"><label>Tanggal Kerja Bakti</label><input id="f-tglkb" class="form-control" type="date"></div>
+    <div class="form-group"><label>Keterangan</label><input id="f-ket" class="form-control"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn btn-primary" onclick="simpanPeriode()">Buat Periode</button>
+    </div>
+  </div>`);
+}
+
+async function simpanPeriode() {
+  const data = { bulan: parseInt(document.getElementById('f-bulan').value), tahun: parseInt(document.getElementById('f-tahun').value), tanggal_kerja_bakti: document.getElementById('f-tglkb').value || null, keterangan: document.getElementById('f-ket').value.trim() || null };
+  const { error } = await db.from('periode').insert(data);
+  if (error) return toast('Gagal: ' + (error.code === '23505' ? 'Periode ini sudah ada!' : error.message), 'error');
+  toast('Periode dibuat! Tagihan otomatis di-generate.', 'success'); closeModal(); renderPeriode();
+}
+
+// ============================================================
+// ADMIN — IURAN
+// ============================================================
+async function renderIuran() {
+  const { data: periodeList } = await db.from('periode').select('*').order('tahun', { ascending: false }).order('bulan', { ascending: false });
+  const now = new Date();
+  const jumpId = window._jumpPeriode; delete window._jumpPeriode;
+  const defaultP = jumpId ? periodeList?.find(p=>p.id===jumpId) : (periodeList?.find(p=>p.bulan===now.getMonth()+1&&p.tahun===now.getFullYear()) || periodeList?.[0]);
+
+  document.getElementById('content').innerHTML = `
+    <div class="filter-bar">
+      <select id="filter-periode" class="form-control" onchange="loadIuran(this.value)">
+        ${(periodeList||[]).map(p=>`<option value="${p.id}" ${p.id===defaultP?.id?'selected':''}>${p.nama_periode}</option>`).join('')}
+      </select>
+      <select id="filter-status-iuran" onchange="filterIuranTable()">
+        <option value="">Semua Status</option><option value="lunas">Lunas</option><option value="sebagian">Sebagian</option><option value="belum">Belum Bayar</option>
+      </select>
+      <button class="btn btn-secondary" onclick="exportIuran()">↓ Export CSV</button>
+    </div>
+    <div id="iuran-stats"></div>
+    <div id="iuran-table-wrap" class="table-card"></div>`;
+  if (defaultP) loadIuran(defaultP.id);
+}
+
+async function loadIuran(periodeId) {
+  window._currentPeriodeId = periodeId;
+  document.getElementById('iuran-table-wrap').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  const { data } = await db.from('iuran').select('*, warga(nama, nomor_rumah, kepemilikan_kendaraan)').eq('periode_id', periodeId).order('warga(nomor_rumah)');
+  window._iuranData = data || [];
+  const lunas = data?.filter(i=>i.status_bayar==='lunas').length||0;
+  const sebagian = data?.filter(i=>i.status_bayar==='sebagian').length||0;
+  const belum = data?.filter(i=>i.status_bayar==='belum').length||0;
+  const terkumpul = data?.reduce((s,i)=>s+i.nominal_dibayar,0)||0;
+  const tagihan = data?.reduce((s,i)=>s+i.nominal_tagihan,0)||0;
+  const pct = tagihan ? Math.round(terkumpul/tagihan*100) : 0;
+  document.getElementById('iuran-stats').innerHTML = `
+    <div class="stats-grid" style="margin-bottom:8px">
+      <div class="stat-card hijau"><div class="stat-label">Terkumpul</div><div class="stat-value">${fRp(terkumpul)}</div><div class="stat-sub">dari ${fRp(tagihan)}</div></div>
+      <div class="stat-card hijau"><div class="stat-label">Lunas</div><div class="stat-value">${lunas}</div></div>
+      <div class="stat-card kuning"><div class="stat-label">Sebagian</div><div class="stat-value">${sebagian}</div></div>
+      <div class="stat-card merah"><div class="stat-label">Belum</div><div class="stat-value">${belum}</div><div class="stat-sub">Sisa: ${fRp(tagihan-terkumpul)}</div></div>
+    </div>
+    <div style="background:var(--putih);border:1px solid var(--border);border-radius:8px;padding:10px 16px;display:flex;align-items:center;gap:12px;margin-bottom:12px">
+      <span style="font-size:12px;font-weight:600;color:var(--abu)">Progres</span>
+      <div class="progress-bar" style="flex:1;height:8px"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <span style="font-size:13px;font-weight:700;color:var(--hijau)">${pct}%</span>
+    </div>`;
+  renderIuranTable(data || []);
+}
+
+function filterIuranTable() {
+  const s = document.getElementById('filter-status-iuran').value;
+  renderIuranTable((window._iuranData||[]).filter(i=>!s||i.status_bayar===s));
+}
+
+function renderIuranTable(data) {
+  document.getElementById('iuran-table-wrap').innerHTML = `
+    <div class="table-header"><h3>Detail Iuran (${data.length} warga)</h3></div>
+    <div class="table-wrap">${!data.length ? '<div class="empty-state"><p>Tidak ada data</p></div>' : `<table>
+      <thead><tr><th>No. Rumah</th><th>Nama</th><th>Kendaraan</th><th>Tagihan</th><th>Dibayar</th><th>Status</th><th>Tgl Bayar</th><th>Aksi</th></tr></thead>
+      <tbody>${data.map(i=>`<tr>
+        <td><span class="badge badge-abu">${i.warga?.nomor_rumah||'-'}</span></td>
+        <td>${i.warga?.nama||'-'}</td>
+        <td style="font-size:12px;color:var(--abu)">${kendaraanLabel(i.warga?.kepemilikan_kendaraan||'')}</td>
+        <td>${fRp(i.nominal_tagihan)}</td>
+        <td><strong>${fRp(i.nominal_dibayar)}</strong></td>
+        <td>${badgeStatus(i.status_bayar)}</td>
+        <td>${fDate(i.tanggal_bayar)}</td>
+        <td><button class="btn btn-secondary btn-sm" onclick='modalBayarIuran(${JSON.stringify(i)})'>Catat</button></td>
+      </tr>`).join('')}</tbody>
+    </table>`}</div>`;
+}
+
+function modalBayarIuran(i) {
+  openModal(`<div class="modal"><div class="modal-title">Catat Pembayaran Iuran</div>
+    <div style="background:var(--abu-muda);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px">
+      <strong>${i.warga?.nama}</strong> · No. ${i.warga?.nomor_rumah}<br>
+      Tagihan: ${fRp(i.nominal_tagihan)} · Sudah: ${fRp(i.nominal_dibayar)} · <span style="color:var(--merah)">Sisa: ${fRp(i.nominal_tagihan-i.nominal_dibayar)}</span>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Nominal Dibayar (Total) *</label><input id="f-bayar" class="form-control" type="number" value="${i.nominal_tagihan}"></div>
+      <div class="form-group"><label>Tanggal Bayar *</label><input id="f-tgl" class="form-control" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+    </div>
+    <div class="form-group"><label>Metode</label>
+      <select id="f-metode" class="form-control"><option>Tunai</option><option>Transfer</option><option>QRIS</option></select>
+    </div>
+    <div class="form-group"><label>Catatan</label><input id="f-catatan" class="form-control" value="${i.catatan||''}"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn btn-primary" onclick="simpanBayarIuran('${i.id}')">Simpan</button>
+    </div>
+  </div>`);
+}
+
+async function simpanBayarIuran(id) {
+  const { error } = await db.from('iuran').update({ nominal_dibayar: parseInt(document.getElementById('f-bayar').value)||0, tanggal_bayar: document.getElementById('f-tgl').value, metode_bayar: document.getElementById('f-metode').value, catatan: document.getElementById('f-catatan').value }).eq('id', id);
+  if (error) return toast('Gagal: ' + error.message, 'error');
+  toast('Pembayaran dicatat!', 'success'); closeModal(); loadIuran(window._currentPeriodeId);
+}
+
+function exportIuran() {
+  const data = window._iuranData||[];
+  const csv = ['No. Rumah,Nama,Kendaraan,Tagihan,Dibayar,Status,Tanggal', ...data.map(i=>`${i.warga?.nomor_rumah},${i.warga?.nama},${kendaraanLabel(i.warga?.kepemilikan_kendaraan)},${i.nominal_tagihan},${i.nominal_dibayar},${i.status_bayar},${i.tanggal_bayar||''}`)].join('\n');
+  const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download = 'iuran.csv'; a.click();
+}
+
+// ============================================================
+// ADMIN — KERJA BAKTI
+// ============================================================
+async function renderKerjaBakti() {
+  const { data: periodeList } = await db.from('periode').select('*').order('tahun', { ascending: false }).order('bulan', { ascending: false });
+  const now = new Date();
+  const jumpId = window._jumpPeriode; delete window._jumpPeriode;
+  const defaultP = jumpId ? periodeList?.find(p=>p.id===jumpId) : (periodeList?.find(p=>p.bulan===now.getMonth()+1&&p.tahun===now.getFullYear()) || periodeList?.[0]);
+
+  document.getElementById('content').innerHTML = `
+    <div class="filter-bar">
+      <select id="filter-periode" class="form-control" onchange="loadKB(this.value)">
+        ${(periodeList||[]).map(p=>`<option value="${p.id}" ${p.id===defaultP?.id?'selected':''}>${p.nama_periode}</option>`).join('')}
+      </select>
+      <button class="btn btn-secondary" onclick="exportKB()">↓ Export CSV</button>
+    </div>
+    <div id="kb-stats"></div>
+    <div id="kb-table-wrap" class="table-card"></div>`;
+  if (defaultP) loadKB(defaultP.id);
+}
+
+async function loadKB(periodeId) {
+  window._currentPeriodeId = periodeId;
+  document.getElementById('kb-table-wrap').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  const { data } = await db.from('kerja_bakti').select('*, warga(nama, nomor_rumah)').eq('periode_id', periodeId).order('warga(nomor_rumah)');
+  window._kbData = data||[];
+  const hadir = data?.filter(k=>k.hadir).length||0;
+  const lunas = data?.filter(k=>k.status_bayar==='lunas').length||0;
+  const belum = data?.filter(k=>k.status_bayar==='belum').length||0;
+  const terkumpul = data?.reduce((s,k)=>s+k.nominal_dibayar,0)||0;
+  document.getElementById('kb-stats').innerHTML = `<div class="stats-grid" style="margin-bottom:12px">
+    <div class="stat-card biru"><div class="stat-label">Hadir KB</div><div class="stat-value">${hadir}</div></div>
+    <div class="stat-card hijau"><div class="stat-label">Denda Terkumpul</div><div class="stat-value">${fRp(terkumpul)}</div></div>
+    <div class="stat-card kuning"><div class="stat-label">Denda Lunas</div><div class="stat-value">${lunas}</div></div>
+    <div class="stat-card merah"><div class="stat-label">Belum Bayar Denda</div><div class="stat-value">${belum}</div></div>
+  </div>`;
+  document.getElementById('kb-table-wrap').innerHTML = `
+    <div class="table-header"><h3>Absensi & Denda Kerja Bakti</h3></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>No. Rumah</th><th>Nama</th><th>Kehadiran</th><th>Retribusi</th><th>Dibayar</th><th>Status</th><th>Tgl Bayar</th><th>Aksi</th></tr></thead>
+      <tbody>${(data||[]).map(k=>`<tr>
+        <td><span class="badge badge-abu">${k.warga?.nomor_rumah||'-'}</span></td>
+        <td>${k.warga?.nama||'-'}</td>
+        <td>${k.hadir?'<span class="badge badge-biru">✓ Hadir</span>':'<span class="badge badge-merah">✗ Tidak Hadir</span>'}</td>
+        <td>${fRp(k.nominal_retribusi)}</td>
+        <td><strong>${fRp(k.nominal_dibayar)}</strong></td>
+        <td>${badgeStatus(k.status_bayar)}</td>
+        <td>${fDate(k.tanggal_bayar)}</td>
+        <td><button class="btn btn-secondary btn-sm" onclick='modalEditKB(${JSON.stringify(k)})'>Update</button></td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+}
+
+function modalEditKB(k) {
+  openModal(`<div class="modal"><div class="modal-title">Update Kerja Bakti — ${k.warga?.nama}</div>
+    <div class="form-group"><label>Kehadiran *</label>
+      <select id="f-hadir" class="form-control" onchange="document.getElementById('denda-f').style.display=this.value==='true'?'none':''">
+        <option value="false" ${!k.hadir?'selected':''}>✗ Tidak Hadir (kena denda)</option>
+        <option value="true" ${k.hadir?'selected':''}>✓ Hadir</option>
+      </select>
+    </div>
+    <div id="denda-f" style="${k.hadir?'display:none':''}">
+      <div class="form-row">
+        <div class="form-group"><label>Nominal Dibayar</label><input id="f-dibayar" class="form-control" type="number" value="${k.nominal_dibayar||0}"></div>
+        <div class="form-group"><label>Tanggal Bayar</label><input id="f-tgl" class="form-control" type="date" value="${k.tanggal_bayar||new Date().toISOString().split('T')[0]}"></div>
+      </div>
+    </div>
+    <div class="form-group"><label>Catatan</label><input id="f-catatan" class="form-control" value="${k.catatan||''}"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn btn-primary" onclick="simpanKB('${k.id}')">Simpan</button>
+    </div>
+  </div>`);
+}
+
+async function simpanKB(id) {
+  const hadir = document.getElementById('f-hadir').value === 'true';
+  const { error } = await db.from('kerja_bakti').update({ hadir, nominal_dibayar: hadir?0:(parseInt(document.getElementById('f-dibayar')?.value)||0), tanggal_bayar: hadir?null:(document.getElementById('f-tgl')?.value||null), catatan: document.getElementById('f-catatan').value }).eq('id', id);
+  if (error) return toast('Gagal: ' + error.message, 'error');
+  toast('Data diperbarui!', 'success'); closeModal(); loadKB(window._currentPeriodeId);
+}
+
+function exportKB() {
+  const data = window._kbData||[];
+  const csv = ['No. Rumah,Nama,Hadir,Retribusi,Dibayar,Status,Tgl Bayar', ...data.map(k=>`${k.warga?.nomor_rumah},${k.warga?.nama},${k.hadir?'Ya':'Tidak'},${k.nominal_retribusi},${k.nominal_dibayar},${k.status_bayar},${k.tanggal_bayar||''}`)].join('\n');
+  const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download = 'kerja-bakti.csv'; a.click();
+}
+
+// ============================================================
+// ADMIN — PENGELUARAN
+// ============================================================
+async function renderPengeluaran() {
+  document.getElementById('header-actions').innerHTML = `<button class="btn btn-primary" onclick="modalTambahPengeluaran()">+ Tambah Pengeluaran</button>`;
+  const { data } = await db.from('kas_pengeluaran').select('*').order('tanggal', { ascending: false });
+  const total = (data||[]).reduce((s,p)=>s+p.jumlah,0);
+  const byKat = {};
+  (data||[]).forEach(p=>{ byKat[p.kategori] = (byKat[p.kategori]||0)+p.jumlah; });
+  document.getElementById('content').innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card merah"><div class="stat-label">Total Pengeluaran</div><div class="stat-value">${fRp(total)}</div></div>
+      ${Object.entries(byKat).map(([k,v])=>`<div class="stat-card"><div class="stat-label">${k}</div><div class="stat-value" style="font-size:16px">${fRp(v)}</div></div>`).join('')}
+    </div>
+    <div class="table-card">
+      <div class="table-header"><h3>Riwayat Pengeluaran</h3></div>
+      <div class="table-wrap">${!data?.length?'<div class="empty-state"><p>Belum ada pengeluaran</p></div>':`<table>
+        <thead><tr><th>Tanggal</th><th>Kategori</th><th>Deskripsi</th><th>Jumlah</th><th>Aksi</th></tr></thead>
+        <tbody>${data.map(p=>`<tr>
+          <td>${fDate(p.tanggal)}</td><td><span class="badge badge-abu">${p.kategori}</span></td>
+          <td>${p.deskripsi}${p.catatan?`<br><small style="color:var(--abu)">${p.catatan}</small>`:''}</td>
+          <td><strong style="color:var(--merah)">${fRp(p.jumlah)}</strong></td>
+          <td><button class="btn btn-danger btn-sm" onclick="hapusPengeluaran('${p.id}')">Hapus</button></td>
+        </tr>`).join('')}</tbody>
+      </table>`}</div>
+    </div>`;
+}
+
+function modalTambahPengeluaran() {
+  openModal(`<div class="modal"><div class="modal-title">Catat Pengeluaran Kas</div>
+    <div class="form-row">
+      <div class="form-group"><label>Tanggal *</label><input id="f-tgl" class="form-control" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+      <div class="form-group"><label>Jumlah (Rp) *</label><input id="f-jumlah" class="form-control" type="number"></div>
+    </div>
+    <div class="form-group"><label>Kategori *</label>
+      <select id="f-kat" class="form-control">
+        <option>Material (Pasir/Batu)</option><option>Perbaikan Jalan</option><option>Kebersihan</option><option>Alat & Perlengkapan</option><option>Lain-lain</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Deskripsi *</label><input id="f-desk" class="form-control" placeholder="Beli pasir 2 kubik..."></div>
+    <div class="form-group"><label>Catatan</label><input id="f-catatan" class="form-control"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn btn-primary" onclick="simpanPengeluaran()">Simpan</button>
+    </div>
+  </div>`);
+}
+
+async function simpanPengeluaran() {
+  const data = { tanggal: document.getElementById('f-tgl').value, jumlah: parseInt(document.getElementById('f-jumlah').value)||0, kategori: document.getElementById('f-kat').value, deskripsi: document.getElementById('f-desk').value.trim(), catatan: document.getElementById('f-catatan').value.trim()||null };
+  if (!data.deskripsi || !data.jumlah) return toast('Deskripsi dan jumlah wajib!', 'error');
+  const { error } = await db.from('kas_pengeluaran').insert(data);
+  if (error) return toast('Gagal: ' + error.message, 'error');
+  toast('Pengeluaran dicatat!', 'success'); closeModal(); renderPengeluaran();
+}
+
+async function hapusPengeluaran(id) {
+  if (!confirm('Hapus pengeluaran ini?')) return;
+  const { error } = await db.from('kas_pengeluaran').delete().eq('id', id);
+  if (error) return toast('Gagal: ' + error.message, 'error');
+  toast('Dihapus.', 'success'); renderPengeluaran();
+}
+
+// ============================================================
+// ADMIN — LAPORAN
+// ============================================================
+async function renderLaporan() {
+  const [{ data: iuranAll }, { data: kbAll }, { data: pengeluaranAll }] = await Promise.all([
+    db.from('iuran').select('nominal_dibayar'),
+    db.from('kerja_bakti').select('nominal_dibayar'),
+    db.from('kas_pengeluaran').select('jumlah, kategori'),
+  ]);
+  const totalIuran = (iuranAll||[]).reduce((s,i)=>s+i.nominal_dibayar,0);
+  const totalKB    = (kbAll||[]).reduce((s,k)=>s+k.nominal_dibayar,0);
+  const totalKeluar = (pengeluaranAll||[]).reduce((s,p)=>s+p.jumlah,0);
+  const totalMasuk = totalIuran + totalKB;
+  const saldo = totalMasuk - totalKeluar;
+  const byKat = {};
+  (pengeluaranAll||[]).forEach(p=>{ byKat[p.kategori]=(byKat[p.kategori]||0)+p.jumlah; });
+
+  document.getElementById('content').innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card hijau"><div class="stat-label">Total Iuran Masuk</div><div class="stat-value">${fRp(totalIuran)}</div></div>
+      <div class="stat-card kuning"><div class="stat-label">Total Denda KB</div><div class="stat-value">${fRp(totalKB)}</div></div>
+      <div class="stat-card merah"><div class="stat-label">Total Pengeluaran</div><div class="stat-value">${fRp(totalKeluar)}</div></div>
+      <div class="stat-card biru"><div class="stat-label">Saldo Kas</div><div class="stat-value">${fRp(saldo)}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="table-card"><div class="table-header"><h3>Pengeluaran per Kategori</h3></div>
+        <div class="table-wrap"><table><thead><tr><th>Kategori</th><th>Total</th><th>%</th></tr></thead><tbody>
+          ${Object.entries(byKat).map(([k,v])=>`<tr><td>${k}</td><td>${fRp(v)}</td><td>${totalKeluar?Math.round(v/totalKeluar*100):0}%</td></tr>`).join('')}
+        </tbody></table></div>
+      </div>
+      <div class="table-card"><div class="table-header"><h3>Neraca Kas</h3></div>
+        <div style="padding:20px">
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6"><span>Iuran Bulanan</span><strong style="color:var(--hijau)">${fRp(totalIuran)}</strong></div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6"><span>Denda Kerja Bakti</span><strong style="color:var(--hijau)">${fRp(totalKB)}</strong></div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:2px solid var(--border);font-weight:600"><span>Total Pemasukan</span><span>${fRp(totalMasuk)}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6"><span>Total Pengeluaran</span><strong style="color:var(--merah)">(${fRp(totalKeluar)})</strong></div>
+          <div style="display:flex;justify-content:space-between;padding:12px 0;font-size:16px;font-weight:700"><span>Saldo Akhir</span><span style="color:${saldo>=0?'var(--hijau)':'var(--merah)'}">${fRp(saldo)}</span></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ============================================================
+// WARGA — PORTAL (Beranda)
+// ============================================================
+async function renderWargaPortal() {
+  if (!currentWarga) { document.getElementById('content').innerHTML = '<div class="alert alert-warning">Data warga tidak ditemukan.</div>'; return; }
+  const w = currentWarga;
+  const now = new Date();
+  const bulan = now.getMonth()+1, tahun = now.getFullYear();
+
+  const { data: periode } = await db.from('periode').select('*').eq('bulan', bulan).eq('tahun', tahun).single();
+  let iuranBulanIni = null, kbBulanIni = null;
+
+  if (periode) {
+    const [{ data: iData }, { data: kData }] = await Promise.all([
+      db.from('iuran').select('*').eq('periode_id', periode.id).eq('warga_id', w.id).single(),
+      db.from('kerja_bakti').select('*').eq('periode_id', periode.id).eq('warga_id', w.id).single(),
+    ]);
+    iuranBulanIni = iData; kbBulanIni = kData;
+  }
+
+  const { data: tunggakan } = await db.from('iuran').select('*, periode(nama_periode)').eq('warga_id', w.id).in('status_bayar', ['belum','sebagian']).order('periode(tahun)').order('periode(bulan)');
+  const totalTunggakan = (tunggakan||[]).reduce((s,i)=>s+(i.nominal_tagihan-i.nominal_dibayar),0);
+
+  document.getElementById('content').innerHTML = `
+    <div class="info-card">
+      <h3>👋 Selamat datang, ${w.nama}</h3>
+      <div class="info-row"><span class="info-label">Nomor Rumah</span><span class="info-value"><span class="badge badge-abu">${w.nomor_rumah}</span></span></div>
+      <div class="info-row"><span class="info-label">Kendaraan</span><span class="info-value">${kendaraanLabel(w.kepemilikan_kendaraan)}</span></div>
+      <div class="info-row"><span class="info-label">Iuran Bulanan</span><span class="info-value" style="color:var(--hijau)">${fRp(w.nominal_iuran)}</span></div>
+      <div class="info-row"><span class="info-label">Status</span><span class="info-value"><span class="badge badge-hijau">Aktif</span></span></div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card ${iuranBulanIni?.status_bayar==='lunas'?'hijau':iuranBulanIni?.status_bayar==='sebagian'?'kuning':'merah'}">
+        <div class="stat-label">Iuran ${BULAN[bulan]}</div>
+        <div class="stat-value">${iuranBulanIni ? badgeStatus(iuranBulanIni.status_bayar) : '<span style="font-size:14px;color:var(--abu)">Belum ada</span>'}</div>
+        <div class="stat-sub">${iuranBulanIni ? `Dibayar: ${fRp(iuranBulanIni.nominal_dibayar)} / ${fRp(iuranBulanIni.nominal_tagihan)}` : '-'}</div>
+      </div>
+      <div class="stat-card ${kbBulanIni?.hadir?'biru':kbBulanIni?.status_bayar==='lunas'?'hijau':'kuning'}">
+        <div class="stat-label">Kerja Bakti ${BULAN[bulan]}</div>
+        <div class="stat-value">${kbBulanIni ? (kbBulanIni.hadir ? '<span class="badge badge-biru">✓ Hadir</span>' : badgeStatus(kbBulanIni.status_bayar)) : '<span style="font-size:14px;color:var(--abu)">Belum ada</span>'}</div>
+        <div class="stat-sub">${kbBulanIni && !kbBulanIni.hadir ? `Denda: ${fRp(kbBulanIni.nominal_dibayar)} / ${fRp(kbBulanIni.nominal_retribusi)}` : '-'}</div>
+      </div>
+      <div class="stat-card ${totalTunggakan>0?'merah':'hijau'}">
+        <div class="stat-label">Total Tunggakan</div>
+        <div class="stat-value">${fRp(totalTunggakan)}</div>
+        <div class="stat-sub">${(tunggakan||[]).length} periode belum lunas</div>
+      </div>
+    </div>
+
+    ${(tunggakan||[]).length ? `
+    <div class="table-card">
+      <div class="table-header"><h3>⚠️ Tunggakan Iuran</h3></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Periode</th><th>Tagihan</th><th>Sudah Bayar</th><th>Sisa</th><th>Status</th></tr></thead>
+        <tbody>${tunggakan.map(i=>`<tr>
+          <td>${i.periode?.nama_periode||'-'}</td>
+          <td>${fRp(i.nominal_tagihan)}</td>
+          <td>${fRp(i.nominal_dibayar)}</td>
+          <td><strong style="color:var(--merah)">${fRp(i.nominal_tagihan-i.nominal_dibayar)}</strong></td>
+          <td>${badgeStatus(i.status_bayar)}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>` : '<div class="alert alert-success">✅ Tidak ada tunggakan iuran. Terima kasih!</div>'}`;
+}
+
+// ============================================================
+// WARGA — IURAN SAYA
+// ============================================================
+async function renderWargaIuran() {
+  if (!currentWarga) return;
+  const { data } = await db.from('iuran').select('*, periode(nama_periode, bulan, tahun)').eq('warga_id', currentWarga.id).order('periode(tahun)', { ascending: false }).order('periode(bulan)', { ascending: false });
+
+  const lunas = (data||[]).filter(i=>i.status_bayar==='lunas').length;
+  const totalBayar = (data||[]).reduce((s,i)=>s+i.nominal_dibayar,0);
+
+  document.getElementById('content').innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card hijau"><div class="stat-label">Total Dibayar</div><div class="stat-value">${fRp(totalBayar)}</div></div>
+      <div class="stat-card hijau"><div class="stat-label">Bulan Lunas</div><div class="stat-value">${lunas}</div><div class="stat-sub">dari ${(data||[]).length} periode</div></div>
+      <div class="stat-card merah"><div class="stat-label">Belum Lunas</div><div class="stat-value">${(data||[]).length - lunas}</div><div class="stat-sub">periode</div></div>
+    </div>
+    <div class="table-card">
+      <div class="table-header"><h3>Riwayat Iuran Saya</h3></div>
+      <div class="table-wrap">${!data?.length ? '<div class="empty-state"><p>Belum ada data iuran</p></div>' : `<table>
+        <thead><tr><th>Periode</th><th>Tagihan</th><th>Dibayar</th><th>Sisa</th><th>Status</th><th>Tgl Bayar</th></tr></thead>
+        <tbody>${data.map(i=>`<tr>
+          <td><strong>${i.periode?.nama_periode||'-'}</strong></td>
+          <td>${fRp(i.nominal_tagihan)}</td>
+          <td>${fRp(i.nominal_dibayar)}</td>
+          <td style="color:${i.nominal_tagihan-i.nominal_dibayar>0?'var(--merah)':'var(--hijau)'}">${fRp(i.nominal_tagihan-i.nominal_dibayar)}</td>
+          <td>${badgeStatus(i.status_bayar)}</td>
+          <td>${fDate(i.tanggal_bayar)}</td>
+        </tr>`).join('')}</tbody>
+      </table>`}</div>
+    </div>`;
+}
+
+// ============================================================
+// WARGA — KERJA BAKTI SAYA
+// ============================================================
+async function renderWargaKerjaBakti() {
+  if (!currentWarga) return;
+  const { data } = await db.from('kerja_bakti').select('*, periode(nama_periode, tanggal_kerja_bakti)').eq('warga_id', currentWarga.id).order('periode(tahun)', { ascending: false }).order('periode(bulan)', { ascending: false });
+
+  const hadirCount = (data||[]).filter(k=>k.hadir).length;
+  const totalDenda = (data||[]).reduce((s,k)=>s+k.nominal_dibayar,0);
+
+  document.getElementById('content').innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card biru"><div class="stat-label">Total Hadir</div><div class="stat-value">${hadirCount}</div><div class="stat-sub">dari ${(data||[]).length} kerja bakti</div></div>
+      <div class="stat-card merah"><div class="stat-label">Total Absen</div><div class="stat-value">${(data||[]).length-hadirCount}</div></div>
+      <div class="stat-card kuning"><div class="stat-label">Total Denda Dibayar</div><div class="stat-value">${fRp(totalDenda)}</div></div>
+    </div>
+    <div class="table-card">
+      <div class="table-header"><h3>Riwayat Kerja Bakti Saya</h3></div>
+      <div class="table-wrap">${!data?.length ? '<div class="empty-state"><p>Belum ada data kerja bakti</p></div>' : `<table>
+        <thead><tr><th>Periode</th><th>Tgl KB</th><th>Kehadiran</th><th>Denda</th><th>Dibayar</th><th>Status</th></tr></thead>
+        <tbody>${data.map(k=>`<tr>
+          <td><strong>${k.periode?.nama_periode||'-'}</strong></td>
+          <td>${fDate(k.periode?.tanggal_kerja_bakti)}</td>
+          <td>${k.hadir?'<span class="badge badge-biru">✓ Hadir</span>':'<span class="badge badge-merah">✗ Tidak Hadir</span>'}</td>
+          <td>${k.hadir?'-':fRp(k.nominal_retribusi)}</td>
+          <td>${k.hadir?'-':fRp(k.nominal_dibayar)}</td>
+          <td>${badgeStatus(k.status_bayar)}</td>
+        </tr>`).join('')}</tbody>
+      </table>`}</div>
+    </div>`;
+}
+
+// ============================================================
+// INIT — Cek sesi yang sudah login
+// ============================================================
+window.onload = async () => {
+  const { data: { session } } = await db.auth.getSession();
+  if (session?.user) {
+    await afterLogin(session.user);
+  }
+};
+
+// Auto-refresh session
+db.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_OUT') {
+    currentUser = null; currentRole = null; currentWarga = null;
+  }
+});
+</script>
+</body>
+</html>
