@@ -489,17 +489,21 @@ async function renderDashboard() {
       recentBayar = (iData || []).filter(i => i.tanggal_bayar).sort((a,b) => new Date(b.tanggal_bayar)-new Date(a.tanggal_bayar)).slice(0,5);
     }
 
-    const { data: pengeluaran } = await db.from('kas_pengeluaran').select('jumlah');
+    const [{ data: pengeluaran }, saldoAwal] = await Promise.all([
+      db.from('kas_pengeluaran').select('jumlah'),
+      getSaldoAwal(),
+    ]);
     const totalKeluar = (pengeluaran || []).reduce((s,p) => s + p.jumlah, 0);
-    const saldo = iS.terkumpul + kS.terkumpul - totalKeluar;
+    const nilaiSaldoAwal = saldoAwal?.jumlah || 0;
+    const saldo = nilaiSaldoAwal + iS.terkumpul + kS.terkumpul - totalKeluar;
 
     document.getElementById('content').innerHTML = `
-      <div class="alert alert-info">📅 Periode aktif: <strong>${BULAN[bulan]} ${tahun}</strong>${!periode ? ' — <a href="#" onclick="navigate(\'periode\')" style="color:inherit;font-weight:700">Buat periode bulan ini →</a>' : ''}</div>
+      <div class="alert alert-info">📅 Periode aktif: <strong>${BULAN[bulan]} ${tahun}</strong>${!periode ? ' — <a href="#" onclick="navigate(\'periode\')" style="color:inherit;font-weight:700">Buat periode bulan ini →</a>' : ''}${!saldoAwal ? ' &nbsp;|&nbsp; ⚠️ <a href="#" onclick="navigate(\'pengeluaran\')" style="color:inherit;font-weight:700">Set saldo awal kas →</a>' : ''}</div>
       <div class="stats-grid">
         <div class="stat-card"><div class="stat-label">Total Warga Aktif</div><div class="stat-value" style="color:var(--gelap)">${wargaCount||0}</div></div>
         <div class="stat-card hijau"><div class="stat-label">Iuran Terkumpul</div><div class="stat-value">${fRp(iS.terkumpul)}</div><div class="stat-sub">${iS.lunas} lunas / ${iS.total} warga</div></div>
         <div class="stat-card kuning"><div class="stat-label">Denda Kerja Bakti</div><div class="stat-value">${fRp(kS.terkumpul)}</div><div class="stat-sub">${kS.hadir} hadir, ${kS.lunas} bayar denda</div></div>
-        <div class="stat-card biru"><div class="stat-label">Saldo Kas</div><div class="stat-value">${fRp(saldo)}</div><div class="stat-sub">Pengeluaran: ${fRp(totalKeluar)}</div></div>
+        <div class="stat-card biru"><div class="stat-label">Saldo Kas</div><div class="stat-value">${fRp(saldo)}</div><div class="stat-sub">Saldo awal: ${fRp(nilaiSaldoAwal)}</div></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
         <div class="table-card"><div class="table-header"><h3>Status Iuran Bulan Ini</h3></div>
@@ -1273,15 +1277,91 @@ function exportKB() {
 }
 
 // ============================================================
+// ADMIN — SALDO AWAL
+// ============================================================
+async function getSaldoAwal() {
+  const { data } = await db.from('kas_saldo_awal').select('*').order('created_at', { ascending: false }).limit(1);
+  return data?.[0] || null;
+}
+
+function modalSaldoAwal(current) {
+  openModal(`<div class="modal">
+    <div class="modal-title">💰 Set Saldo Awal Kas</div>
+    <div style="background:var(--kuning-muda);color:#92400e;border-radius:8px;padding:12px 14px;font-size:13px;margin-bottom:16px;line-height:1.6">
+      Saldo awal adalah uang kas yang sudah ada <strong>sebelum sistem ini digunakan</strong>.
+      Nilai ini akan dijumlahkan ke seluruh pemasukan sebagai modal awal kas.
+    </div>
+    <div class="form-group">
+      <label>Saldo Awal (Rp) *</label>
+      <input id="f-saldo-awal" class="form-control" type="number" min="0"
+        value="${current?.jumlah || 0}" placeholder="Contoh: 500000">
+    </div>
+    <div class="form-group">
+      <label>Tanggal Pencatatan</label>
+      <input id="f-saldo-tgl" class="form-control" type="date"
+        value="${current?.tanggal || new Date().toISOString().split('T')[0]}">
+    </div>
+    <div class="form-group">
+      <label>Keterangan</label>
+      <input id="f-saldo-ket" class="form-control"
+        value="${current?.keterangan || ''}" placeholder="Misal: Saldo kas sebelum pakai SiKas">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn btn-primary" onclick="simpanSaldoAwal('${current?.id || ''}')">Simpan</button>
+    </div>
+  </div>`);
+}
+
+async function simpanSaldoAwal(existingId) {
+  const jumlah     = parseInt(document.getElementById('f-saldo-awal').value) || 0;
+  const tanggal    = document.getElementById('f-saldo-tgl').value;
+  const keterangan = document.getElementById('f-saldo-ket').value.trim() || 'Saldo awal kas';
+
+  let error;
+  if (existingId) {
+    ({ error } = await db.from('kas_saldo_awal').update({ jumlah, tanggal, keterangan }).eq('id', existingId));
+  } else {
+    ({ error } = await db.from('kas_saldo_awal').insert({ jumlah, tanggal, keterangan }));
+  }
+  if (error) return toast('Gagal: ' + error.message, 'error');
+  toast('Saldo awal disimpan!', 'success');
+  closeModal();
+  renderPengeluaran();
+}
+
+// ============================================================
 // ADMIN — PENGELUARAN
 // ============================================================
 async function renderPengeluaran() {
   document.getElementById('header-actions').innerHTML = `<button class="btn btn-primary" onclick="modalTambahPengeluaran()">+ Tambah Pengeluaran</button>`;
-  const { data } = await db.from('kas_pengeluaran').select('*').order('tanggal', { ascending: false });
+
+  const [{ data }, saldoAwal] = await Promise.all([
+    db.from('kas_pengeluaran').select('*').order('tanggal', { ascending: false }),
+    getSaldoAwal(),
+  ]);
+
   const total = (data||[]).reduce((s,p)=>s+p.jumlah,0);
   const byKat = {};
   (data||[]).forEach(p=>{ byKat[p.kategori] = (byKat[p.kategori]||0)+p.jumlah; });
+
   document.getElementById('content').innerHTML = `
+    <!-- SALDO AWAL CARD -->
+    <div class="table-card" style="margin-bottom:16px">
+      <div style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div>
+          <div style="font-size:12px;color:var(--abu);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">💰 Saldo Awal Kas</div>
+          <div style="font-size:24px;font-weight:700;color:var(--biru)">${fRp(saldoAwal?.jumlah || 0)}</div>
+          <div style="font-size:12px;color:var(--abu);margin-top:2px">
+            ${saldoAwal ? `Dicatat: ${fDate(saldoAwal.tanggal)} · ${saldoAwal.keterangan}` : 'Belum diset — klik tombol untuk mengisi saldo awal kas'}
+          </div>
+        </div>
+        <button class="btn btn-secondary" onclick="modalSaldoAwal(${JSON.stringify(saldoAwal||null)})">
+          ${saldoAwal ? '✏️ Ubah Saldo Awal' : '+ Set Saldo Awal'}
+        </button>
+      </div>
+    </div>
+
     <div class="stats-grid">
       <div class="stat-card merah"><div class="stat-label">Total Pengeluaran</div><div class="stat-value">${fRp(total)}</div></div>
       ${Object.entries(byKat).map(([k,v])=>`<div class="stat-card"><div class="stat-label">${k}</div><div class="stat-value" style="font-size:16px">${fRp(v)}</div></div>`).join('')}
@@ -1339,39 +1419,59 @@ async function hapusPengeluaran(id) {
 // ADMIN — LAPORAN
 // ============================================================
 async function renderLaporan() {
-  const [{ data: iuranAll }, { data: kbAll }, { data: pengeluaranAll }] = await Promise.all([
+  const [{ data: iuranAll }, { data: kbAll }, { data: pengeluaranAll }, saldoAwal] = await Promise.all([
     db.from('iuran').select('nominal_dibayar'),
     db.from('kerja_bakti').select('nominal_dibayar'),
     db.from('kas_pengeluaran').select('jumlah, kategori'),
+    getSaldoAwal(),
   ]);
-  const totalIuran = (iuranAll||[]).reduce((s,i)=>s+i.nominal_dibayar,0);
-  const totalKB    = (kbAll||[]).reduce((s,k)=>s+k.nominal_dibayar,0);
-  const totalKeluar = (pengeluaranAll||[]).reduce((s,p)=>s+p.jumlah,0);
-  const totalMasuk = totalIuran + totalKB;
-  const saldo = totalMasuk - totalKeluar;
+  const totalIuran   = (iuranAll||[]).reduce((s,i)=>s+i.nominal_dibayar,0);
+  const totalKB      = (kbAll||[]).reduce((s,k)=>s+k.nominal_dibayar,0);
+  const totalKeluar  = (pengeluaranAll||[]).reduce((s,p)=>s+p.jumlah,0);
+  const nilaiSaldoAwal = saldoAwal?.jumlah || 0;
+  const totalMasuk   = totalIuran + totalKB;
+  const saldo        = nilaiSaldoAwal + totalMasuk - totalKeluar;
   const byKat = {};
   (pengeluaranAll||[]).forEach(p=>{ byKat[p.kategori]=(byKat[p.kategori]||0)+p.jumlah; });
 
   document.getElementById('content').innerHTML = `
     <div class="stats-grid">
+      <div class="stat-card biru"><div class="stat-label">Saldo Awal</div><div class="stat-value">${fRp(nilaiSaldoAwal)}</div></div>
       <div class="stat-card hijau"><div class="stat-label">Total Iuran Masuk</div><div class="stat-value">${fRp(totalIuran)}</div></div>
       <div class="stat-card kuning"><div class="stat-label">Total Denda KB</div><div class="stat-value">${fRp(totalKB)}</div></div>
       <div class="stat-card merah"><div class="stat-label">Total Pengeluaran</div><div class="stat-value">${fRp(totalKeluar)}</div></div>
-      <div class="stat-card biru"><div class="stat-label">Saldo Kas</div><div class="stat-value">${fRp(saldo)}</div></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <div class="table-card"><div class="table-header"><h3>Pengeluaran per Kategori</h3></div>
         <div class="table-wrap"><table><thead><tr><th>Kategori</th><th>Total</th><th>%</th></tr></thead><tbody>
-          ${Object.entries(byKat).map(([k,v])=>`<tr><td>${k}</td><td>${fRp(v)}</td><td>${totalKeluar?Math.round(v/totalKeluar*100):0}%</td></tr>`).join('')}
+          ${Object.entries(byKat).length ? Object.entries(byKat).map(([k,v])=>`<tr><td>${k}</td><td>${fRp(v)}</td><td>${totalKeluar?Math.round(v/totalKeluar*100):0}%</td></tr>`).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--abu);padding:16px">Belum ada pengeluaran</td></tr>'}
         </tbody></table></div>
       </div>
       <div class="table-card"><div class="table-header"><h3>Neraca Kas</h3></div>
         <div style="padding:20px">
-          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6"><span>Iuran Bulanan</span><strong style="color:var(--hijau)">${fRp(totalIuran)}</strong></div>
-          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6"><span>Denda Kerja Bakti</span><strong style="color:var(--hijau)">${fRp(totalKB)}</strong></div>
-          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:2px solid var(--border);font-weight:600"><span>Total Pemasukan</span><span>${fRp(totalMasuk)}</span></div>
-          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6"><span>Total Pengeluaran</span><strong style="color:var(--merah)">(${fRp(totalKeluar)})</strong></div>
-          <div style="display:flex;justify-content:space-between;padding:12px 0;font-size:16px;font-weight:700"><span>Saldo Akhir</span><span style="color:${saldo>=0?'var(--hijau)':'var(--merah)'}">${fRp(saldo)}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6">
+            <span style="color:var(--abu)">Saldo Awal</span>
+            <strong style="color:var(--biru)">${fRp(nilaiSaldoAwal)}</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6">
+            <span>Iuran Bulanan</span><strong style="color:var(--hijau)">+ ${fRp(totalIuran)}</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6">
+            <span>Denda Kerja Bakti</span><strong style="color:var(--hijau)">+ ${fRp(totalKB)}</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:2px solid var(--border);font-weight:600">
+            <span>Total Modal Kas</span><span>${fRp(nilaiSaldoAwal + totalMasuk)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6">
+            <span>Total Pengeluaran</span><strong style="color:var(--merah)">− ${fRp(totalKeluar)}</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:14px 0 0;font-size:18px;font-weight:700">
+            <span>Saldo Kas Saat Ini</span>
+            <span style="color:${saldo>=0?'var(--hijau)':'var(--merah)'}">${fRp(saldo)}</span>
+          </div>
+          ${!saldoAwal ? `<div style="margin-top:12px;font-size:12px;color:var(--kuning);background:var(--kuning-muda);border-radius:6px;padding:8px 10px">
+            ⚠️ Saldo awal belum diset. <a href="#" onclick="navigate('pengeluaran')" style="color:var(--kuning);font-weight:700">Set sekarang →</a>
+          </div>` : ''}
         </div>
       </div>
     </div>`;
