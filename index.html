@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SiKas — Sistem Iuran & Kerja Bakti Perumahan</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --hijau: #16a34a;
+  --hijau-muda: #dcfce7;
+  --hijau-tua: #14532d;
+  --kuning: #d97706;
+  --kuning-muda: #fef3c7;
+  --merah: #dc2626;
+  --merah-muda: #fee2e2;
+  --biru: #2563eb;
+  --biru-muda: #dbeafe;
+  --abu: #6b7280;
+  --abu-muda: #f3f4f6;
+  --putih: #ffffff;
+  --gelap: #111827;
+  --bg: #f0fdf4;
+  --border: #d1fae5;
+  --sidebar-w: 240px;
+  --header-h: 60px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--gelap); font-size: 14px; }
+
+/* LAYOUT */
+#app { display: flex; min-height: 100vh; }
+#sidebar {
+  width: var(--sidebar-w); background: var(--hijau-tua); color: #fff;
+  position: fixed; top: 0; left: 0; height: 100vh; z-index: 100;
+  display: flex; flex-direction: column; overflow-y: auto;
+}
+#main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
+#header {
+  height: var(--header-h); background: var(--putih); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 24px; gap: 12px;
+  position: sticky; top: 0; z-index: 50;
+}
+#content { flex: 1; padding: 24px; }
+
+/* SIDEBAR */
+.sidebar-logo { padding: 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.sidebar-logo h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+.sidebar-logo p { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+.sidebar-nav { flex: 1; padding: 12px 8px; }
+.nav-section { font-size: 10px; font-weight: 600; opacity: 0.5; text-transform: uppercase; letter-spacing: 1px; padding: 8px 8px 4px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500;
+  transition: background 0.15s; margin-bottom: 2px; color: rgba(255,255,255,0.8);
+}
+.nav-item:hover { background: rgba(255,255,255,0.1); color: #fff; }
+.nav-item.active { background: rgba(255,255,255,0.15); color: #fff; }
+.nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+.sidebar-footer { padding: 12px; border-top: 1px solid rgba(255,255,255,0.1); }
+.conn-badge { font-size: 11px; display: flex; align-items: center; gap: 6px; opacity: 0.7; }
+.conn-dot { width: 6px; height: 6px; border-radius: 50%; background: #6b7280; }
+.conn-dot.ok { background: #4ade80; }
+
+/* HEADER */
+.page-title { font-size: 16px; font-weight: 700; flex: 1; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
+  border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+  border: none; transition: all 0.15s; text-decoration: none;
+}
+.btn-primary { background: var(--hijau); color: #fff; }
+.btn-primary:hover { background: #15803d; }
+.btn-secondary { background: var(--putih); color: var(--gelap); border: 1px solid #d1d5db; }
+.btn-secondary:hover { background: var(--abu-muda); }
+.btn-danger { background: var(--merah); color: #fff; }
+.btn-danger:hover { background: #b91c1c; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-icon { padding: 6px; }
+
+/* CARDS & STATS */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.stat-card {
+  background: var(--putih); border-radius: 12px; padding: 16px 20px;
+  border: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px;
+}
+.stat-label { font-size: 12px; color: var(--abu); font-weight: 500; }
+.stat-value { font-size: 24px; font-weight: 700; }
+.stat-sub { font-size: 12px; color: var(--abu); }
+.stat-card.hijau .stat-value { color: var(--hijau); }
+.stat-card.kuning .stat-value { color: var(--kuning); }
+.stat-card.merah .stat-value { color: var(--merah); }
+.stat-card.biru .stat-value { color: var(--biru); }
+
+/* TABLE */
+.table-card { background: var(--putih); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+.table-header { padding: 16px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.table-header h3 { font-size: 15px; font-weight: 700; flex: 1; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th { background: #f9fafb; padding: 10px 14px; text-align: left; font-size: 12px; font-weight: 600; color: var(--abu); border-bottom: 1px solid var(--border); white-space: nowrap; }
+td { padding: 12px 14px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #fafafa; }
+
+/* BADGES */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap;
+}
+.badge-hijau { background: var(--hijau-muda); color: #166534; }
+.badge-kuning { background: var(--kuning-muda); color: #92400e; }
+.badge-merah { background: var(--merah-muda); color: #991b1b; }
+.badge-abu { background: var(--abu-muda); color: #374151; }
+.badge-biru { background: var(--biru-muda); color: #1e40af; }
+
+/* MODAL */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  animation: fadeIn 0.15s;
+}
+@keyframes fadeIn { from { opacity: 0; } }
+.modal {
+  background: var(--putih); border-radius: 16px; padding: 24px; width: 100%; max-width: 520px;
+  max-height: 90vh; overflow-y: auto; animation: slideUp 0.2s;
+}
+@keyframes slideUp { from { transform: translateY(16px); opacity: 0; } }
+.modal-title { font-size: 17px; font-weight: 700; margin-bottom: 20px; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--abu); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.form-control {
+  width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px;
+  font-size: 14px; font-family: inherit; transition: border 0.15s;
+  background: var(--putih); color: var(--gelap);
+}
+.form-control:focus { outline: none; border-color: var(--hijau); box-shadow: 0 0 0 3px rgba(22,163,74,0.1); }
+select.form-control { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 36px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid #f3f4f6; }
+
+/* TABS */
+.tabs { display: flex; gap: 4px; background: var(--abu-muda); padding: 4px; border-radius: 10px; margin-bottom: 20px; width: fit-content; }
+.tab { padding: 8px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--abu); transition: all 0.15s; }
+.tab.active { background: var(--putih); color: var(--gelap); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+/* FILTERS */
+.filter-bar { display: flex; gap: 8px; flex-wrap: wrap; }
+.filter-bar select, .filter-bar input { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; background: var(--putih); }
+.filter-bar select:focus, .filter-bar input:focus { outline: none; border-color: var(--hijau); }
+
+/* EMPTY STATE */
+.empty-state { text-align: center; padding: 48px 24px; color: var(--abu); }
+.empty-state svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.3; }
+.empty-state p { font-size: 13px; }
+
+/* PROGRESS BAR */
+.progress-bar { height: 4px; background: #e5e7eb; border-radius: 2px; overflow: hidden; width: 100px; display: inline-block; vertical-align: middle; }
+.progress-fill { height: 100%; background: var(--hijau); border-radius: 2px; transition: width 0.3s; }
+
+/* CONFIG PANEL */
+.config-panel { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 16px; margin-bottom: 20px; }
+.config-panel h4 { font-size: 13px; font-weight: 700; color: #92400e; margin-bottom: 8px; }
+.config-fields { display: flex; flex-direction: column; gap: 10px; }
+.config-fields input { max-width: 400px; }
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  :root { --sidebar-w: 0px; }
+  #sidebar { display: none; }
+  #main { margin-left: 0; }
+  .form-row { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* LOADING */
+.loading { display: flex; align-items: center; justify-content: center; padding: 48px; gap: 10px; color: var(--abu); }
+.spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--hijau); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ALERT */
+.alert { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; }
+.alert-info { background: var(--biru-muda); color: #1e3a8a; }
+.alert-success { background: var(--hijau-muda); color: #14532d; }
+.alert-warning { background: var(--kuning-muda); color: #92400e; }
+
+/* TOAST */
+#toast {
+  position: fixed; bottom: 24px; right: 24px; z-index: 999;
+  display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+}
+.toast-item {
+  background: var(--gelap); color: #fff; padding: 12px 16px; border-radius: 10px;
+  font-size: 13px; font-weight: 500; max-width: 300px;
+  animation: toastIn 0.2s ease; pointer-events: all;
+}
+.toast-item.success { background: var(--hijau); }
+.toast-item.error { background: var(--merah); }
+@keyframes toastIn { from { transform: translateY(8px); opacity: 0; } }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- SIDEBAR -->
+  <aside id="sidebar">
+    <div class="sidebar-logo">
+      <h1>🏘️ SiKas</h1>
+      <p>Sistem Iuran Perumahan</p>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Menu Utama</div>
+      <div class="nav-item active" onclick="navigate('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-section">Data Master</div>
+      <div class="nav-item" onclick="navigate('warga')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Data Warga
+      </div>
+      <div class="nav-item" onclick="navigate('periode')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Periode
+      </div>
+      <div class="nav-section">Iuran & Kas</div>
+      <div class="nav-item" onclick="navigate('iuran')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Iuran Bulanan
+      </div>
+      <div class="nav-item" onclick="navigate('kerjabakti')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+        Kerja Bakti
+      </div>
+      <div class="nav-item" onclick="navigate('pengeluaran')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        Pengeluaran Kas
+      </div>
+      <div class="nav-section">Laporan</div>
+      <div class="nav-item" onclick="navigate('laporan')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Laporan Kas
+      </div>
+      <div class="nav-section">Pengaturan</div>
+      <div class="nav-item" onclick="navigate('pengaturan')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+        Pengaturan
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="conn-badge">
+        <div class="conn-dot" id="conn-dot"></div>
+        <span id="conn-label">Menghubungkan...</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div id="main">
+    <header id="header">
+      <span class="page-title" id="page-title">Dashboard</span>
+      <div id="header-actions"></div>
+    </header>
+    <main id="content">
+      <div class="loading" id="loading-screen">
+        <div class="spinner"></div>
+        Memuat data...
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- MODAL CONTAINER -->
+<div id="modal-container"></div>
+<div id="toast"></div>
+
+<script>
+// ============================================================
+// KONFIGURASI SUPABASE
+// ============================================================
+let SUPABASE_URL = localStorage.getItem('sb_url') || '';
+let SUPABASE_KEY = localStorage.getItem('sb_key') || '';
+let db = null;
+let currentPage = 'dashboard';
+
+function initSupabase() {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return false;
+  try {
+    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+// ============================================================
+// TOAST NOTIFICATIONS
+// ============================================================
+function toast(msg, type = 'info') {
+  const t = document.getElementById('toast');
+  const el = document.createElement('div');
+  el.className = `toast-item ${type}`;
+  el.textContent = msg;
+  t.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300); }, 3000);
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function navigate(page) {
+  currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  const navMap = { dashboard: 0, warga: 1, periode: 2, iuran: 3, kerjabakti: 4, pengeluaran: 5, laporan: 6, pengaturan: 7 };
+  const items = document.querySelectorAll('.nav-item');
+  if (items[navMap[page]]) items[navMap[page]].classList.add('active');
+  
+  const titles = { dashboard: 'Dashboard', warga: 'Data Warga', periode: 'Kelola Periode', iuran: 'Iuran Bulanan', kerjabakti: 'Kerja Bakti', pengeluaran: 'Pengeluaran Kas', laporan: 'Laporan Kas', pengaturan: 'Pengaturan' };
+  document.getElementById('page-title').textContent = titles[page] || page;
+  document.getElementById('header-actions').innerHTML = '';
+  render(page);
+}
+
+async function render(page) {
+  if (!db && page !== 'pengaturan') {
+    renderPengaturan(true);
+    return;
+  }
+  const c = document.getElementById('content');
+  c.innerHTML = '<div class="loading"><div class="spinner"></div> Memuat...</div>';
+  
+  const pages = { dashboard: renderDashboard, warga: renderWarga, periode: renderPeriode, iuran: renderIuran, kerjabakti: renderKerjaBakti, pengeluaran: renderPengeluaran, laporan: renderLaporan, pengaturan: renderPengaturan };
+  if (pages[page]) await pages[page]();
+}
+
+// ============================================================
+// HELPER FORMAT
+// ============================================================
+const fRp = n => 'Rp ' + (n || 0).toLocaleString('id-ID');
+const fDate = d => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+const BULAN = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+function badgeStatus(s) {
+  const map = { lunas: ['badge-hijau','✓ Lunas'], sebagian: ['badge-kuning','◑ Sebagian'], belum: ['badge-merah','✗ Belum'], tidak_perlu: ['badge-biru','↩ Hadir'] };
+  const [cls, label] = map[s] || ['badge-abu', s];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function kendaraanLabel(k) {
+  const map = { tidak_ada: 'Tidak ada', motor: 'Motor', mobil: 'Mobil', motor_dan_mobil: 'Motor & Mobil' };
+  return map[k] || k;
+}
+
+// ============================================================
+// MODAL
+// ============================================================
+function openModal(html) {
+  const c = document.getElementById('modal-container');
+  c.innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()">${html}</div>`;
+}
+function closeModal() { document.getElementById('modal-container').innerHTML = ''; }
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+async function renderDashboard() {
+  try {
+    const now = new Date();
+    const bulan = now.getMonth() + 1, tahun = now.getFullYear();
+    
+    const [{ data: periode }, { data: warga }, { count: wargaCount }] = await Promise.all([
+      db.from('periode').select('*').eq('bulan', bulan).eq('tahun', tahun).single(),
+      db.from('warga').select('id, nama, nomor_rumah').eq('status_aktif', true).limit(5),
+      db.from('warga').select('*', { count: 'exact', head: true }).eq('status_aktif', true),
+    ]);
+
+    let iuranStats = { total: 0, lunas: 0, sebagian: 0, belum: 0, terkumpul: 0 };
+    let kbStats = { hadir: 0, lunas: 0, sebagian: 0, belum: 0, terkumpul: 0 };
+    let recentIuran = [];
+    
+    if (periode) {
+      const [{ data: iuranData }, { data: kbData }] = await Promise.all([
+        db.from('iuran').select('*, warga(nama, nomor_rumah)').eq('periode_id', periode.id),
+        db.from('kerja_bakti').select('*, warga(nama, nomor_rumah)').eq('periode_id', periode.id),
+      ]);
+      if (iuranData) {
+        iuranStats.total = iuranData.length;
+        iuranData.forEach(i => {
+          iuranStats[i.status_bayar]++;
+          iuranStats.terkumpul += i.nominal_dibayar || 0;
+        });
+        recentIuran = iuranData.filter(i => i.tanggal_bayar).sort((a,b) => new Date(b.tanggal_bayar)-new Date(a.tanggal_bayar)).slice(0,5);
+      }
+      if (kbData) {
+        kbData.forEach(k => {
+          if (k.hadir) kbStats.hadir++;
+          else kbStats[k.status_bayar]++;
+          kbStats.terkumpul += k.nominal_dibayar || 0;
+        });
+      }
+    }
+
+    const { data: pengeluaran } = await db.from('kas_pengeluaran').select('jumlah');
+    const totalPengeluaran = (pengeluaran || []).reduce((s, p) => s + p.jumlah, 0);
+    const totalMasuk = iuranStats.terkumpul + kbStats.terkumpul;
+    const saldoKas = totalMasuk - totalPengeluaran;
+
+    document.getElementById('content').innerHTML = `
+      <div class="alert alert-info">📅 Periode aktif: <strong>${BULAN[bulan]} ${tahun}</strong>${!periode ? ' — <a href="#" onclick="navigate(\'periode\')" style="color:inherit">Buat periode bulan ini</a>' : ''}</div>
+      <div class="stats-grid">
+        <div class="stat-card hijau">
+          <div class="stat-label">Total Warga Aktif</div>
+          <div class="stat-value">${wargaCount || 0}</div>
+          <div class="stat-sub">warga terdaftar</div>
+        </div>
+        <div class="stat-card hijau">
+          <div class="stat-label">Iuran Terkumpul</div>
+          <div class="stat-value">${fRp(iuranStats.terkumpul)}</div>
+          <div class="stat-sub">${iuranStats.lunas} lunas / ${iuranStats.total} warga</div>
+        </div>
+        <div class="stat-card kuning">
+          <div class="stat-label">Retribusi KB</div>
+          <div class="stat-value">${fRp(kbStats.terkumpul)}</div>
+          <div class="stat-sub">${kbStats.hadir} hadir, ${kbStats.lunas} bayar denda</div>
+        </div>
+        <div class="stat-card biru">
+          <div class="stat-label">Saldo Kas</div>
+          <div class="stat-value">${fRp(saldoKas)}</div>
+          <div class="stat-sub">Pengeluaran: ${fRp(totalPengeluaran)}</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="table-card">
+          <div class="table-header"><h3>Iuran Bulan Ini</h3></div>
+          <div style="padding:16px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
+              <div style="background:var(--hijau-muda);border-radius:8px;padding:12px;"><div style="font-size:22px;font-weight:700;color:var(--hijau)">${iuranStats.lunas}</div><div style="font-size:11px;color:#166534">Lunas</div></div>
+              <div style="background:var(--kuning-muda);border-radius:8px;padding:12px;"><div style="font-size:22px;font-weight:700;color:var(--kuning)">${iuranStats.sebagian}</div><div style="font-size:11px;color:#92400e">Sebagian</div></div>
+              <div style="background:var(--merah-muda);border-radius:8px;padding:12px;"><div style="font-size:22px;font-weight:700;color:var(--merah)">${iuranStats.belum}</div><div style="font-size:11px;color:#991b1b">Belum</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-header"><h3>Kerja Bakti Bulan Ini</h3></div>
+          <div style="padding:16px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
+              <div style="background:var(--biru-muda);border-radius:8px;padding:12px;"><div style="font-size:22px;font-weight:700;color:var(--biru)">${kbStats.hadir}</div><div style="font-size:11px;color:#1e40af">Hadir</div></div>
+              <div style="background:var(--hijau-muda);border-radius:8px;padding:12px;"><div style="font-size:22px;font-weight:700;color:var(--hijau)">${kbStats.lunas}</div><div style="font-size:11px;color:#166534">Bayar</div></div>
+              <div style="background:var(--merah-muda);border-radius:8px;padding:12px;"><div style="font-size:22px;font-weight:700;color:var(--merah)">${kbStats.belum}</div><div style="font-size:11px;color:#991b1b">Belum</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      ${recentIuran.length ? `
+      <div class="table-card" style="margin-top:16px;">
+        <div class="table-header"><h3>Pembayaran Iuran Terakhir</h3></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Warga</th><th>Rumah</th><th>Bayar</th><th>Status</th><th>Tanggal</th></tr></thead>
+          <tbody>${recentIuran.map(i => `<tr>
+            <td>${i.warga?.nama||'-'}</td>
+            <td><span class="badge badge-abu">${i.warga?.nomor_rumah||'-'}</span></td>
+            <td>${fRp(i.nominal_dibayar)}</td>
+            <td>${badgeStatus(i.status_bayar)}</td>
+            <td>${fDate(i.tanggal_bayar)}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>
+      </div>` : ''}
+    `;
+  } catch(e) {
+    document.getElementById('content').innerHTML = `<div class="alert alert-warning">Gagal memuat dashboard: ${e.message}</div>`;
+  }
+}
+
+// ============================================================
+// DATA WARGA
+// ============================================================
+async function renderWarga() {
+  document.getElementById('header-actions').innerHTML = `<button class="btn btn-primary" onclick="modalTambahWarga()">+ Tambah Warga</button>`;
+  try {
+    const { data } = await db.from('warga').select('*').order('nomor_rumah');
+    const aktif = (data || []).filter(w => w.status_aktif);
+    const nonaktif = (data || []).filter(w => !w.status_aktif);
+    
+    document.getElementById('content').innerHTML = `
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="stat-card"><div class="stat-label">Total Warga</div><div class="stat-value">${data?.length||0}</div></div>
+        <div class="stat-card hijau"><div class="stat-label">Motor (30rb)</div><div class="stat-value">${aktif.filter(w=>['motor','tidak_ada'].includes(w.kepemilikan_kendaraan)).length}</div></div>
+        <div class="stat-card kuning"><div class="stat-label">Ada Mobil (50rb)</div><div class="stat-value">${aktif.filter(w=>['mobil','motor_dan_mobil'].includes(w.kepemilikan_kendaraan)).length}</div></div>
+        <div class="stat-card merah"><div class="stat-label">Non Aktif</div><div class="stat-value">${nonaktif.length}</div></div>
+      </div>
+      <div class="table-card">
+        <div class="table-header">
+          <h3>Daftar Warga</h3>
+          <input class="form-control" style="max-width:200px" placeholder="Cari nama/rumah..." oninput="filterWarga(this.value,'${data ? encodeURIComponent(JSON.stringify(data)) : ''}')">
+        </div>
+        <div class="table-wrap" id="warga-table">
+          ${renderWargaTable(data || [])}
+        </div>
+      </div>`;
+    window._wargaData = data || [];
+  } catch(e) {
+    document.getElementById('content').innerHTML = `<div class="alert alert-warning">Error: ${e.message}</div>`;
+  }
+}
+
+function renderWargaTable(data) {
+  if (!data.length) return '<div class="empty-state"><p>Belum ada data warga</p></div>';
+  return `<table><thead><tr><th>No. Rumah</th><th>Nama</th><th>Telepon</th><th>Kendaraan</th><th>Iuran/Bln</th><th>Status</th><th>Aksi</th></tr></thead><tbody>
+    ${data.map(w => `<tr>
+      <td><span class="badge badge-abu">${w.nomor_rumah}</span></td>
+      <td><strong>${w.nama}</strong>${w.catatan?`<br><span style="font-size:11px;color:var(--abu)">${w.catatan}</span>`:''}</td>
+      <td>${w.no_telepon||'-'}</td>
+      <td>${kendaraanLabel(w.kepemilikan_kendaraan)}</td>
+      <td><strong>${fRp(w.nominal_iuran)}</strong></td>
+      <td>${w.status_aktif?'<span class="badge badge-hijau">Aktif</span>':'<span class="badge badge-abu">Non-aktif</span>'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-secondary btn-sm" onclick="modalEditWarga(${encodeURIComponent(JSON.stringify(w))})">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="hapusWarga('${w.id}','${w.nama}')">Hapus</button>
+      </td>
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+
+function filterWarga(q) {
+  const data = (window._wargaData || []).filter(w => !q || w.nama.toLowerCase().includes(q.toLowerCase()) || w.nomor_rumah.toLowerCase().includes(q.toLowerCase()));
+  document.getElementById('warga-table').innerHTML = renderWargaTable(data);
+}
+
+function modalTambahWarga() {
+  openModal(`<div class="modal">
+    <div class="modal-title">Tambah Warga Baru</div>
+    <div class="form-row">
+      <div class="form-group"><label>Nama Lengkap *</label><input id="f-nama" class="form-control" placeholder="Budi Santoso"></div>
+      <div class="form-group"><label>No. Rumah *</label><input id="f-rumah" class="form-control" placeholder="A-01"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>No. Telepon</label><input id="f-telp" class="form-control" placeholder="08xxxxxxxxxx"></div>
+      <div class="form-group"><label>Kendaraan *</label>
+        <select id="f-kendaraan" class="form-control">
+          <option value="motor">Motor (Rp 30.000)</option>
+          <option value="motor_dan_mobil">Motor & Mobil (Rp 50.000)</option>
+          <option value="mobil">Mobil (Rp 50.000)</option>
+          <option value="tidak_ada">Tidak Ada (Rp 30.000)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Catatan</label><input id="f-catatan" class="form-control" placeholder="Opsional..."></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn btn-primary" onclick="simpanWarga()">Simpan</button>
+    </div>
+  </div>`);
+}
+
+function modalEditWarga(wStr) {
+  const w = typeof wStr === 'string' ? JSON.parse(decodeURIComponent(wStr)) : wStr;
+  openModal(`<div class="modal">
+    <div class="modal-title">Edit Warga — ${w.nama}</div>
+    <div class="form-row">
+      <div class="form-group"><label>Nama Lengkap *</label><input id="f-nama" class="form-control" value="${w.nama}"></div>
+      <div class="form-group"><label>No. Rumah *</label><input id="f-rumah" class="form-control" value="${w.nomor_rumah}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>No. Telepon</label><input id="f-telp" class="form-control" value="${w.no_telepon||''}"></div>
+      <div class="form-group"><label>Kendaraan *</label>
+        <select id="f-kendaraan" class="form-control">
+          <option value="motor" ${w.kepemilikan_kendaraan==='motor'?'selected':''}>Motor (Rp 30.000)</option>
+          <option value="motor_dan_mobil" ${w.kepemilikan_kendaraan==='motor_dan_mobil'?'selected':''}>Motor & Mobil (Rp 50.000)</option>
+          <option value="mobil" ${w.kepemilikan_kendaraan==='mobil'?'selected':''}>Mobil (Rp 50.000)</option>
+          <option value="tidak_ada" ${w.kepemilikan_kendaraan==='tidak_ada'?'selected':''}>Tidak Ada (Rp 30.000)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Catatan</label><input id="f-catatan" class="form-control" value="${w.catatan||''}"></div>
+      <div class="form-group"><label>Status</label>
+        <select id="f-status" class="form-control">
+          <option value="true" ${w.status_aktif?'selected':''}>Aktif</option>
+          <option value="false" ${!w.status_aktif?'selected':''}>Non-aktif</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn btn-primary" onclick="updateWarga('${w.id}')">Simpan</button>
+    </div>
+  </div>`);
+}
+
+async function simpanWarga() {
+  const data = { nama: document.getElementById('f-nama').value.trim(), nomor_rumah: document.getElementById('f-rumah').value.trim(), no_telepon: document.getElementById('f-telp').value.trim(), kepemilikan_kendaraan: document.getElementById('f-kendaraan').value, catatan: document.getElementById('f-catatan').value.trim(), status_aktif: true };
+  if (!data.nama || !data.nomor_rumah) return toast('Nama dan No. Rumah wajib diisi!', 'error');
+  const { error } = await db.from('warga').insert(data);
+  if (error) { toast('Gagal: ' + error.message, 'error'); return; }
+  toast('Warga berhasil ditambahkan!', 'success'); closeModal(); renderWarga();
+}
+
+async function updateWarga(id) {
+  const data = { nama: document.getElementById('f-nama').value.trim(), nomor_rumah: document.getElementById('f-rumah').value.trim(), no_telepon: document.getElementById('f-telp').value.trim(), kepemilikan_kendaraan: document.getElementById('f-kendaraan').value, catatan: document.getElementById('f-catatan').value.trim(), status_aktif: document.getElementById('f-status').value === 'true' };
+  if (!data.nama || !data.nomor_rumah) return toast('Nama dan No. Rumah wajib diisi!', 'error');
+  const { error } = await db.from('warga').update(data).eq('id', id);
+  if (error) { toast('Gagal: ' + error.message, 'error'); return; }
+  toast('Data warga berhasil diperbarui!', 'success'); closeModal(); renderWarga();
+}
+
+async function hapusWarga(id, nama) {
+  if (!confirm(`Hapus warga "${nama}"? Data iuran & kerja bakti terkait tidak dapat dihapus.`)) return;
+  const { error } = await db.from('warga').delete().eq('id', id);
+  if (error) { toast('Gagal: ' + error.message, 'error'); return; }
+  toast('Warga dihapus.', 'success'); renderWarga();
+}
+
+// ============================================================
+// PERIODE
+// ============================================================
+async function renderPeriode() {
+  document.getElementById('header-actions').innerHTML = `<button class="btn btn-primary" onclick="modalTambahPeriode()">+ Buat Periode</button>`;
+  try {
+    const { data } = await db.from('periode').select('*').order('tahun', { ascending: false }).order('bulan', { ascending: false });
+    document.getElementById('content').innerHTML = `
+      <div class="alert alert-info">💡 Membuat periode baru akan otomatis men-generate tagihan iuran & kerja bakti untuk semua warga aktif.</div>
+      <div class="table-card">
+        <div class="table-header"><h3>Daftar Periode</h3></div>
+        <div class="table-wrap">
+          ${!data?.length ? '<div class="empty-state"><p>Belum ada periode</p></div>' : `<table>
+            <thead><tr><th>Periode</th><th>Tgl Kerja Bakti</th><th>Keterangan</th><th>Aksi</th></tr></thead>
+            <tbody>${data.map(p => `<tr>
+              <td><strong>${p.nama_periode}</strong></td>
+              <td>${fDate(p.tanggal_kerja_bakti)}</td>
+              <td>${p.keterangan||'-'}</td>
+              <td>
+                <button class="btn btn-secondary btn-sm" onclick="navigate('iuran');setTimeout(()=>setPeriodeFilter('${p.id}'),500)">Lihat Iuran</button>
+                <button class="btn btn-secondary btn-sm" onclick="navigate('kerjabakti');setTimeout(()=>setPeriodeFilter('${p.id}'),500)">Lihat KB</button>
+              </td>
+            </tr>`).join('')}</tbody>
+          </table>`}
+        </div>
+      </div>`;
+  } catch(e) {
+    document.getElementById('content').innerHTML = `<div class="alert alert-warning">Error: ${e.message}</div>`;
+  }
+}
+
+function modalTambahPeriode() {
+  const now = new Date();
+  openModal(`<div class="modal">
+    <div class="modal-title">Buat Periode Baru</div>
+    <div class="form-row">
+      <div class="form-group"><label>Bulan *</label>
+        <select id="f-bulan" class="form-control">
+          ${BULAN.slice(1).map((b,i) => `<option value="${i+1}" ${now.getMonth()+1===i+1?'selected':''}>${b}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label>Tahun *</label><input id="f-tahun" class="form-control" type="number" value="${now.getFullYear()}"></div>
+    </div>
+    <div class="form-group"><label>Tanggal Kerja Bakti</label><input id="f-tglkb" class="form-control" type="date"></div>
+    <div class="form-group"><label>Keterangan</label><input id="f-ket" class="form-control" placeholder="Opsional..."></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn btn-primary" onclick="simpanPeriode()">Buat Periode</button>
+    </div>
+  </div>`);
+}
+
+async function simpanPeriode() {
+  const data = { bulan: parseInt(document.getElementById('f-bulan').value), tahun: parseInt(document.getElementById('f-tahun').value), tanggal_kerja_bakti: document.getElementById('f-tglkb').value || null, keterangan: document.getElementById('f-ket').value.trim() || null };
+  const { error } = await db.from('periode').insert(data);
+  if (error) { toast('Gagal: ' + (error.code === '23505' ? 'Periode ini sudah ada!' : error.message), 'error'); return; }
+  toast('Periode berhasil dibuat! Tagihan otomatis di-generate.', 'success'); closeModal(); renderPeriode();
+}
+
+window.setPeriodeFilter = (id) => { const el = document.getElementById('filter-periode'); if (el) { el.value = id; el.dispatchEvent(new Event('change')); } };
+
+// ============================================================
+// IURAN BULANAN
+// ============================================================
+async function renderIuran() {
+  try {
+    const { data: periodeList } = await db.from('periode').select('*').order('tahun', { ascending: false }).order('bulan', { ascending: false });
+    const now = new Date();
+    const defaultPeriode = periodeList?.find(p => p.bulan === now.getMonth()+1 && p.tahun === now.getFullYear()) || periodeList?.[0];
+    
+    document.getElementById('content').innerHTML = `
+      <div class="filter-bar" style="margin-bottom:16px;">
+        <select id="filter-periode" class="form-control" onchange="loadIuran(this.value)">
+          ${(periodeList||[]).map(p => `<option value="${p.id}" ${p.id===defaultPeriode?.id?'selected':''}>${p.nama_periode}</option>`).join('')}
+        </select>
+        <select id="filter-status-iuran" onchange="filterIuranTable()">
+          <option value="">Semua Status</option>
+          <option value="lunas">Lunas</option>
+          <option value="sebagian">Sebagian</option>
+          <option value="belum">Belum Bayar</option>
+        </select>
+        <button class="btn btn-secondary" onclick="exportIuran()">↓ Export CSV</button>
+      </div>
+      <div id="iuran-stats" style="margin-bottom:16px;"></div>
+      <div id="iuran-table-wrap" class="table-card"></div>`;
+    
+    if (defaultPeriode) loadIuran(defaultPeriode.id);
+  } catch(e) {
+    document.getElementById('content').innerHTML = `<div class="alert alert-warning">Error: ${e.message}</div>`;
+  }
+}
+
+async function loadIuran(periodeId) {
+  if (!periodeId) return;
+  document.getElementById('iuran-table-wrap').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  const { data } = await db.from('iuran').select('*, warga(nama, nomor_rumah, kepemilikan_kendaraan)').eq('periode_id', periodeId).order('warga(nomor_rumah)');
+  window._iuranData = data || [];
+  window._currentPeriodeId = periodeId;
+  renderIuranStats(data || []);
+  renderIuranTable(data || []);
+}
+
+function renderIuranStats(data) {
+  const lunas = data.filter(i=>i.status_bayar==='lunas').length;
+  const sebagian = data.filter(i=>i.status_bayar==='sebagian').length;
+  const belum = data.filter(i=>i.status_bayar==='belum').length;
+  const terkumpul = data.reduce((s,i)=>s+i.nominal_dibayar,0);
+  const tagihan = data.reduce((s,i)=>s+i.nominal_tagihan,0);
+  const pct = tagihan ? Math.round(terkumpul/tagihan*100) : 0;
+  document.getElementById('iuran-stats').innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card hijau"><div class="stat-label">Terkumpul</div><div class="stat-value">${fRp(terkumpul)}</div><div class="stat-sub">dari ${fRp(tagihan)} target</div></div>
+      <div class="stat-card hijau"><div class="stat-label">Lunas</div><div class="stat-value">${lunas}</div><div class="stat-sub">warga</div></div>
+      <div class="stat-card kuning"><div class="stat-label">Sebagian</div><div class="stat-value">${sebagian}</div><div class="stat-sub">warga</div></div>
+      <div class="stat-card merah"><div class="stat-label">Belum Bayar</div><div class="stat-value">${belum}</div><div class="stat-sub">warga | Sisa: ${fRp(tagihan-terkumpul)}</div></div>
+    </div>
+    <div style="background:var(--putih);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:4px;display:flex;align-items:center;gap:12px;">
+      <span style="font-size:13px;font-weight:600;color:var(--abu)">Progres Iuran</span>
+      <div class="progress-bar" style="width:auto;flex:1;height:8px;"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <span style="font-size:13px;font-weight:700;color:var(--hijau)">${pct}%</span>
+    </div>`;
+}
+
+function filterIuranTable() {
+  const status = document.getElementById('filter-status-iuran').value;
+  const data = (window._iuranData || []).filter(i => !status || i.status_bayar === status);
+  renderIuranTable(data);
+}
+
+function renderIuranTable(data) {
+  document.getElementById('iuran-table-wrap').innerHTML = `
+    <div class="table-header"><h3>Detail Iuran (${data.length} warga)</h3></div>
+    <div class="table-wrap">${!data.length ? '<div class="empty-state"><p>Tidak ada data</p></div>' : `<table>
+      <thead><tr><th>No. Rumah</th><th>Nama</th><th>Kendaraan</th><th>Tagihan</th><th>Dibayar</th><th>Status</th><th>Tgl Bayar</th><th>Aksi</th></tr></thead>
+      <tbody>${data.map(i => `<tr>
+        <td><span class="badge badge-abu">${i.warga?.nomor_rumah||'-'}</span></td>
+        <td>${i.warga?.nama||'-'}</td>
+        <td style="font-size:12px;color:var(--abu)">${kendaraanLabel(i.warga?.kepemilikan_kendaraan||'')}</td>
+        <td>${fRp(i.nominal_tagihan)}</td>
+        <td><strong>${fRp(i.nominal_dibayar)}</strong></td>
+        <td>${badgeStatus(i.status_bayar)}</td>
+        <td>${fDate(i.tanggal_bayar)}</td>
+        <td><button class="btn btn-secondary btn-sm" onclick='modalBayarIuran(${JSON.stringify(i)})'>Catat Bayar</button></td>
+      </tr>`).join('')}</tbody>
+    </table>`}</div>`;
+}
+
+function modalBayarIuran(i) {
+  const sisa = i.nominal_tagihan - (i.nominal_dibayar || 0);
+  openModal(`<div class="modal">
+    <div class="modal-title">Catat Pembayaran Iuran</div>
+    <div style="background:var(--abu-muda);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;">
+      <strong>${i.warga?.nama}</strong> · No. ${i.warga?.nomor_rumah}<br>
+      Tagihan: ${fRp(i.nominal_tagihan)} · Sudah dibayar: ${fRp(i.nominal_dibayar)} · <span style="color:var(--merah)">Sisa: ${fRp(sisa)}</span>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Nominal Dibayar (Total) *</label><input id="f-bayar" class="form-control" type="number" value="${i.nominal_tagihan}" min="0"></div>
+      <div class="form-group"><label>Tanggal Bayar *</label><input id="f-tgl" class="form-control" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+    </div>
+    <div class="form-group"><label>Metode</label>
+      <select id="f-metode" class="form-control">
+        <option>Tunai</option><option>Transfer</option><option>QRIS</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Catatan</label><input id="f-catatan" class="form-control" value="${i.catatan||''}"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn btn-primary" onclick="simpanBayarIuran('${i.id}')">Simpan</button>
+    </div>
+  </div>`);
+}
+
+async function simpanBayarIuran(id) {
+  const nominal = parseInt(document.getElementById('f-bayar').value) || 0;
+  const { error } = await db.from('iuran').update({ nominal_dibayar: nominal, tanggal_bayar: document.getElementById('f-tgl').value, metode_bayar: document.getElementById('f-metode').value, catatan: document.getElementById('f-catatan').value }).eq('id', id);
+  if (error) { toast('Gagal: ' + error.message, 'error'); return; }
+  toast('Pembayaran berhasil dicatat!', 'success'); closeModal(); loadIuran(window._currentPeriodeId);
+}
+
+function exportIuran() {
+  const data = window._iuranData || [];
+  const csv = ['No. Rumah,Nama,Kendaraan,Tagihan,Dibayar,Status,Tanggal Bayar', ...data.map(i => `${i.warga?.nomor_rumah},${i.warga?.nama},${kendaraanLabel(i.warga?.kepemilikan_kendaraan)},${i.nominal_tagihan},${i.nominal_dibayar},${i.status_bayar},${i.tanggal_bayar||''}`)].join('\n');
+  const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'iuran-export.csv'; a.click();
+}
+
+// ============================================================
+// KERJA BAKTI
+// ============================================================
+async function renderKerjaBakti() {
+  try {
+    const { data: periodeList } = await db.from('periode').select('*').order('tahun', { ascending: false }).order('bulan', { ascending: false });
+    const now = new Date();
+    const defaultPeriode = periodeList?.find(p => p.bulan===now.getMonth()+1 && p.tahun===now.getFullYear()) || periodeList?.[0];
+    
+    document.getElementById('content').innerHTML = `
+      <div class="filter-bar" style="margin-bottom:16px;">
+        <select id="filter-periode" class="form-control" onchange="loadKB(this.value)">
+          ${(periodeList||[]).map(p => `<option value="${p.id}" ${p.id===defaultPeriode?.id?'selected':''}>${p.nama_periode}</option>`).join('')}
+        </select>
+        <select id="filter-status-kb" onchange="filterKBTable()">
+          <option value="">Semua</option>
+          <option value="hadir">Hadir</option>
+          <option value="tidak_perlu">Tidak Perlu Bayar</option>
+          <option value="lunas">Denda Lunas</option>
+          <option value="sebagian">Denda Sebagian</option>
+          <option value="belum">Belum Bayar Denda</option>
+        </select>
+        <button class="btn btn-secondary" onclick="exportKB()">↓ Export CSV</button>
+      </div>
+      <div id="kb-stats" style="margin-bottom:16px;"></div>
+      <div id="kb-table-wrap" class="table-card"></div>`;
+    if (defaultPeriode) loadKB(defaultPeriode.id);
+  } catch(e) {
+    document.getElementById('content').innerHTML = `<div class="alert alert-warning">Error: ${e.message}</div>`;
+  }
+}
+
+async function loadKB(periodeId) {
+  if (!periodeId) return;
+  document.getElementById('kb-table-wrap').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  const { data } = await db.from('kerja_bakti').select('*, warga(nama, nomor_rumah)').eq('periode_id', periodeId).order('warga(nomor_rumah)');
+  window._kbData = data || [];
+  window._currentPeriodeId = periodeId;
+  renderKBStats(data || []);
+  renderKBTable(data || []);
+}
+
+function renderKBStats(data) {
+  const hadir = data.filter(k=>k.hadir).length;
+  const lunas = data.filter(k=>k.status_bayar==='lunas').length;
+  const sebagian = data.filter(k=>k.status_bayar==='sebagian').length;
+  const belum = data.filter(k=>k.status_bayar==='belum').length;
+  const terkumpul = data.reduce((s,k)=>s+k.nominal_dibayar,0);
+  const dendaTarget = data.filter(k=>!k.hadir).reduce((s,k)=>s+k.nominal_retribusi,0);
+  document.getElementById('kb-stats').innerHTML = `<div class="stats-grid">
+    <div class="stat-card biru"><div class="stat-label">Hadir Kerja Bakti</div><div class="stat-value">${hadir}</div><div class="stat-sub">warga hadir</div></div>
+    <div class="stat-card hijau"><div class="stat-label">Denda Terkumpul</div><div class="stat-value">${fRp(terkumpul)}</div><div class="stat-sub">dari ${fRp(dendaTarget)} target denda</div></div>
+    <div class="stat-card kuning"><div class="stat-label">Denda Sebagian</div><div class="stat-value">${sebagian}</div><div class="stat-sub">warga</div></div>
+    <div class="stat-card merah"><div class="stat-label">Belum Bayar Denda</div><div class="stat-value">${belum}</div><div class="stat-sub">warga</div></div>
+  </div>`;
+}
+
+function filterKBTable() {
+  const status = document.getElementById('filter-status-kb').value;
+  let data = window._kbData || [];
+  if (status === 'hadir') data = data.filter(k=>k.hadir);
+  else if (status) data = data.filter(k=>!k.hadir && k.status_bayar===status);
+  renderKBTable(data);
+}
+
+function renderKBTable(data) {
+  document.getElementById('kb-table-wrap').innerHTML = `
+    <div class="table-header"><h3>Absensi & Denda Kerja Bakti (${data.length})</h3></div>
+    <div class="table-wrap">${!data.length ? '<div class="empty-state"><p>Tidak ada data</p></div>' : `<table>
+      <thead><tr><th>No. Rumah</th><th>Nama</th><th>Kehadiran</th><th>Retribusi</th><th>Dibayar</th><th>Status</th><th>Tgl Bayar</th><th>Aksi</th></tr></thead>
+      <tbody>${data.map(k => `<tr>
+        <td><span class="badge badge-abu">${k.warga?.nomor_rumah||'-'}</span></td>
+        <td>${k.warga?.nama||'-'}</td>
+        <td>${k.hadir?'<span class="badge badge-biru">✓ Hadir</span>':'<span class="badge badge-merah">✗ Tidak Hadir</span>'}</td>
+        <td>${fRp(k.nominal_retribusi)}</td>
+        <td><strong>${fRp(k.nominal_dibayar)}</strong></td>
+        <td>${badgeStatus(k.status_bayar)}</td>
+        <td>${fDate(k.tanggal_bayar)}</td>
+        <td><button class="btn btn-secondary btn-sm" onclick='modalEditKB(${JSON.stringify(k)})'>Update</button></td>
+      </tr>`).join('')}</tbody>
+    </table>`}</div>`;
+}
+
+function modalEditKB(k) {
+  openModal(`<div class="modal">
+    <div class="modal-title">Update Kerja Bakti</div>
+    <div style="background:var(--abu-muda);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;">
+      <strong>${k.warga?.nama}</strong> · No. ${k.warga?.nomor_rumah}
+    </div>
+    <div class="form-group"><label>Status Kehadiran *</label>
+      <select id="f-hadir" class="form-control" onchange="toggleDendaFields(this.value)">
+        <option value="false" ${!k.hadir?'selected':''}>✗ Tidak Hadir (kena denda ${fRp(k.nominal_retribusi)})</option>
+        <option value="true" ${k.hadir?'selected':''}>✓ Hadir (tidak kena denda)</option>
+      </select>
+    </div>
+    <div id="denda-fields" style="${k.hadir?'display:none':''}">
+      <div class="form-row">
+        <div class="form-group"><label>Dibayar (Nominal)</label><input id="f-dibayar" class="form-control" type="number" value="${k.nominal_dibayar||0}" min="0"></div>
+        <div class="form-group"><label>Tanggal Bayar</label><input id="f-tgl" class="form-control" type="date" value="${k.tanggal_bayar||new Date().toISOString().split('T')[0]}"></div>
+      </div>
+    </div>
+    <div class="form-group"><label>Catatan</label><input id="f-catatan" class="form-control" value="${k.catatan||''}"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn btn-primary" onclick="simpanKB('${k.id}')">Simpan</button>
+    </div>
+  </div>`);
+}
+
+function toggleDendaFields(val) {
+  document.getElementById('denda-fields').style.display = val === 'true' ? 'none' : '';
+}
+
+async function simpanKB(id) {
+  const hadir = document.getElementById('f-hadir').value === 'true';
+  const nominal_dibayar = hadir ? 0 : (parseInt(document.getElementById('f-dibayar')?.value) || 0);
+  const tanggal_bayar = hadir ? null : (document.getElementById('f-tgl')?.value || null);
+  const { error } = await db.from('kerja_bakti').update({ hadir, nominal_dibayar, tanggal_bayar, catatan: document.getElementById('f-catatan').value }).eq('id', id);
+  if (error) { toast('Gagal: ' + error.message, 'error'); return; }
+  toast('Data berhasil diperbarui!', 'success'); closeModal(); loadKB(window._currentPeriodeId);
+}
+
+function exportKB() {
+  const data = window._kbData || [];
+  const csv = ['No. Rumah,Nama,Hadir,Retribusi,Dibayar,Status,Tanggal Bayar', ...data.map(k => `${k.warga?.nomor_rumah},${k.warga?.nama},${k.hadir?'Ya':'Tidak'},${k.nominal_retribusi},${k.nominal_dibayar},${k.status_bayar},${k.tanggal_bayar||''}`)].join('\n');
+  const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'kerja-bakti-export.csv'; a.click();
+}
+
+// ============================================================
+// PENGELUARAN KAS
+// ============================================================
+async function renderPengeluaran() {
+  document.getElementById('header-actions').innerHTML = `<button class="btn btn-primary" onclick="modalTambahPengeluaran()">+ Tambah Pengeluaran</button>`;
+  try {
+    const { data } = await db.from('kas_pengeluaran').select('*').order('tanggal', { ascending: false });
+    const total = (data||[]).reduce((s,p)=>s+p.jumlah,0);
+    const byKat = {};
+    (data||[]).forEach(p => { byKat[p.kategori] = (byKat[p.kategori]||0) + p.jumlah; });
+    
+    document.getElementById('content').innerHTML = `
+      <div class="stats-grid">
+        <div class="stat-card merah"><div class="stat-label">Total Pengeluaran</div><div class="stat-value">${fRp(total)}</div></div>
+        ${Object.entries(byKat).map(([k,v]) => `<div class="stat-card"><div class="stat-label">${k}</div><div class="stat-value" style="font-size:16px">${fRp(v)}</div></div>`).join('')}
+      </div>
+      <div class="table-card">
+        <div class="table-header"><h3>Riwayat Pengeluaran</h3></div>
+        <div class="table-wrap">${!data?.length ? '<div class="empty-state"><p>Belum ada pengeluaran</p></div>' : `<table>
+          <thead><tr><th>Tanggal</th><th>Kategori</th><th>Deskripsi</th><th>Jumlah</th><th>Aksi</th></tr></thead>
+          <tbody>${data.map(p => `<tr>
+            <td>${fDate(p.tanggal)}</td>
+            <td><span class="badge badge-abu">${p.kategori}</span></td>
+            <td>${p.deskripsi}${p.catatan?`<br><span style="font-size:11px;color:var(--abu)">${p.catatan}</span>`:''}</td>
+            <td><strong style="color:var(--merah)">${fRp(p.jumlah)}</strong></td>
+            <td><button class="btn btn-danger btn-sm" onclick="hapusPengeluaran('${p.id}')">Hapus</button></td>
+          </tr>`).join('')}</tbody>
+        </table>`}</div>
+      </div>`;
+  } catch(e) {
+    document.getElementById('content').innerHTML = `<div class="alert alert-warning">Error: ${e.message}</div>`;
+  }
+}
+
+function modalTambahPengeluaran() {
+  openModal(`<div class="modal">
+    <div class="modal-title">Catat Pengeluaran Kas</div>
+    <div class="form-row">
+      <div class="form-group"><label>Tanggal *</label><input id="f-tgl" class="form-control" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+      <div class="form-group"><label>Jumlah (Rp) *</label><input id="f-jumlah" class="form-control" type="number" placeholder="150000"></div>
+    </div>
+    <div class="form-group"><label>Kategori *</label>
+      <select id="f-kat" class="form-control">
+        <option>Material (Pasir/Batu)</option>
+        <option>Perbaikan Jalan</option>
+        <option>Kebersihan</option>
+        <option>Alat & Perlengkapan</option>
+        <option>Lain-lain</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Deskripsi *</label><input id="f-desk" class="form-control" placeholder="Beli pasir 2 kubik untuk Jl. Mawar"></div>
+    <div class="form-group"><label>Catatan</label><input id="f-catatan" class="form-control" placeholder="Opsional..."></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn btn-primary" onclick="simpanPengeluaran()">Simpan</button>
+    </div>
+  </div>`);
+}
+
+async function simpanPengeluaran() {
+  const data = { tanggal: document.getElementById('f-tgl').value, jumlah: parseInt(document.getElementById('f-jumlah').value)||0, kategori: document.getElementById('f-kat').value, deskripsi: document.getElementById('f-desk').value.trim(), catatan: document.getElementById('f-catatan').value.trim()||null };
+  if (!data.deskripsi || !data.jumlah) return toast('Deskripsi dan jumlah wajib diisi!', 'error');
+  const { error } = await db.from('kas_pengeluaran').insert(data);
+  if (error) { toast('Gagal: ' + error.message, 'error'); return; }
+  toast('Pengeluaran dicatat!', 'success'); closeModal(); renderPengeluaran();
+}
+
+async function hapusPengeluaran(id) {
+  if (!confirm('Hapus pengeluaran ini?')) return;
+  const { error } = await db.from('kas_pengeluaran').delete().eq('id', id);
+  if (error) { toast('Gagal: ' + error.message, 'error'); return; }
+  toast('Pengeluaran dihapus.', 'success'); renderPengeluaran();
+}
+
+// ============================================================
+// LAPORAN
+// ============================================================
+async function renderLaporan() {
+  try {
+    const { data: iuranAll } = await db.from('iuran').select('nominal_dibayar, status_bayar, periode_id');
+    const { data: kbAll } = await db.from('kerja_bakti').select('nominal_dibayar, status_bayar');
+    const { data: pengeluaranAll } = await db.from('kas_pengeluaran').select('jumlah, kategori, tanggal');
+    const { data: periodeList } = await db.from('periode').select('*').order('tahun').order('bulan');
+    
+    const totalIuran = (iuranAll||[]).reduce((s,i)=>s+i.nominal_dibayar,0);
+    const totalKB = (kbAll||[]).reduce((s,k)=>s+k.nominal_dibayar,0);
+    const totalPengeluaran = (pengeluaranAll||[]).reduce((s,p)=>s+p.jumlah,0);
+    const totalMasuk = totalIuran + totalKB;
+    const saldo = totalMasuk - totalPengeluaran;
+    
+    const byKat = {};
+    (pengeluaranAll||[]).forEach(p => { byKat[p.kategori] = (byKat[p.kategori]||0) + p.jumlah; });
+    
+    document.getElementById('content').innerHTML = `
+      <div class="stats-grid">
+        <div class="stat-card hijau"><div class="stat-label">Total Iuran Masuk</div><div class="stat-value">${fRp(totalIuran)}</div></div>
+        <div class="stat-card kuning"><div class="stat-label">Total Denda KB</div><div class="stat-value">${fRp(totalKB)}</div></div>
+        <div class="stat-card merah"><div class="stat-label">Total Pengeluaran</div><div class="stat-value">${fRp(totalPengeluaran)}</div></div>
+        <div class="stat-card biru"><div class="stat-label">Saldo Kas</div><div class="stat-value">${fRp(saldo)}</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="table-card">
+          <div class="table-header"><h3>Pengeluaran per Kategori</h3></div>
+          <div class="table-wrap"><table><thead><tr><th>Kategori</th><th>Total</th><th>%</th></tr></thead><tbody>
+            ${Object.entries(byKat).map(([k,v]) => `<tr><td>${k}</td><td>${fRp(v)}</td><td>${totalPengeluaran?Math.round(v/totalPengeluaran*100):0}%</td></tr>`).join('')}
+          </tbody></table></div>
+        </div>
+        <div class="table-card">
+          <div class="table-header"><h3>Neraca Kas</h3></div>
+          <div style="padding:16px;">
+            <div style="border-bottom:1px solid #f3f4f6;padding-bottom:12px;margin-bottom:12px;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span>Iuran Bulanan</span><strong style="color:var(--hijau)">${fRp(totalIuran)}</strong></div>
+              <div style="display:flex;justify-content:space-between;"><span>Denda Kerja Bakti</span><strong style="color:var(--hijau)">${fRp(totalKB)}</strong></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:12px;"><span>Total Pemasukan</span><strong>${fRp(totalMasuk)}</strong></div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:12px;border-bottom:1px solid #f3f4f6;padding-bottom:12px;"><span>Total Pengeluaran</span><strong style="color:var(--merah)">(${fRp(totalPengeluaran)})</strong></div>
+            <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;"><span>Saldo Akhir</span><span style="color:${saldo>=0?'var(--hijau)':'var(--merah)'}">${fRp(saldo)}</span></div>
+          </div>
+        </div>
+      </div>`;
+  } catch(e) {
+    document.getElementById('content').innerHTML = `<div class="alert alert-warning">Error: ${e.message}</div>`;
+  }
+}
+
+// ============================================================
+// PENGATURAN
+// ============================================================
+function renderPengaturan(forced = false) {
+  document.getElementById('content').innerHTML = `
+    ${forced ? '<div class="alert alert-warning">⚠️ Koneksi Supabase belum dikonfigurasi. Silakan isi pengaturan di bawah untuk mulai menggunakan aplikasi.</div>' : ''}
+    <div class="config-panel">
+      <h4>⚙️ Konfigurasi Supabase</h4>
+      <p style="font-size:12px;color:#92400e;margin-bottom:12px;">Temukan URL & API Key di Supabase Dashboard → Project Settings → API. Gunakan <strong>anon/public key</strong>.</p>
+      <div class="config-fields">
+        <div class="form-group"><label>Supabase Project URL</label><input id="cfg-url" class="form-control" placeholder="https://xxxxx.supabase.co" value="${SUPABASE_URL}"></div>
+        <div class="form-group"><label>Supabase Anon Key</label><input id="cfg-key" class="form-control" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." value="${SUPABASE_KEY}" type="password"></div>
+        <button class="btn btn-primary" onclick="simpanConfig()">Simpan & Hubungkan</button>
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="table-header"><h3>Panduan Setup</h3></div>
+      <div style="padding:16px;font-size:13px;line-height:1.8;color:#374151;">
+        <p><strong>Langkah 1:</strong> Buat project baru di <a href="https://supabase.com" target="_blank">supabase.com</a></p>
+        <p><strong>Langkah 2:</strong> Masuk ke SQL Editor, jalankan file <code>schema.sql</code> yang disediakan</p>
+        <p><strong>Langkah 3:</strong> Salin Project URL dan anon key dari Settings → API</p>
+        <p><strong>Langkah 4:</strong> Paste di form di atas, klik Simpan & Hubungkan</p>
+        <p><strong>Langkah 5:</strong> Mulai dengan membuat Periode, lalu catat warga dan pembayaran</p>
+        <hr style="margin:12px 0;border-color:#f3f4f6;">
+        <p><strong>Nominal Iuran:</strong> Motor/Tidak ada kendaraan = Rp 30.000 | Ada Mobil = Rp 50.000</p>
+        <p><strong>Denda Kerja Bakti:</strong> Tidak hadir = Rp 50.000 (fleksibel, bisa bayar sebagian)</p>
+      </div>
+    </div>`;
+}
+
+async function simpanConfig() {
+  SUPABASE_URL = document.getElementById('cfg-url').value.trim();
+  SUPABASE_KEY = document.getElementById('cfg-key').value.trim();
+  if (!SUPABASE_URL || !SUPABASE_KEY) return toast('URL dan Key wajib diisi!', 'error');
+  localStorage.setItem('sb_url', SUPABASE_URL);
+  localStorage.setItem('sb_key', SUPABASE_KEY);
+  if (initSupabase()) {
+    try {
+      await db.from('warga').select('id').limit(1);
+      setConnStatus(true);
+      toast('Berhasil terhubung ke Supabase!', 'success');
+      navigate('dashboard');
+    } catch(e) {
+      setConnStatus(false);
+      toast('Gagal terhubung: ' + e.message, 'error');
+    }
+  }
+}
+
+function setConnStatus(ok) {
+  document.getElementById('conn-dot').className = 'conn-dot' + (ok ? ' ok' : '');
+  document.getElementById('conn-label').textContent = ok ? 'Terhubung' : 'Tidak terhubung';
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.onload = async () => {
+  document.getElementById('loading-screen').style.display = 'none';
+  if (initSupabase()) {
+    try {
+      const { data, error } = await db.from('warga').select('id').limit(1);
+      if (error) {
+        console.error('Supabase error:', error);
+        setConnStatus(false);
+        renderPengaturanWithError(error);
+      } else {
+        setConnStatus(true);
+        navigate('dashboard');
+      }
+    } catch(e) {
+      console.error('Connection error:', e);
+      setConnStatus(false);
+      renderPengaturanWithError(e);
+    }
+  } else {
+    renderPengaturan(true);
+  }
+};
+
+function renderPengaturanWithError(err) {
+  const isRLS = err?.code === '42501' || err?.message?.includes('row-level') || err?.message?.includes('permission') || err?.code === 'PGRST301';
+  document.getElementById('content').innerHTML = `
+    <div class="alert" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;margin-bottom:16px;">
+      <strong>⚠️ Gagal mengakses database</strong><br>
+      <code style="font-size:12px;background:rgba(0,0,0,0.05);padding:2px 6px;border-radius:4px;">${err?.message || err}</code>
+    </div>
+    ${isRLS || true ? `
+    <div class="alert alert-warning">
+      <strong>🔒 Kemungkinan masalah: Row Level Security (RLS) Supabase memblokir akses.</strong><br><br>
+      <strong>Solusi — jalankan SQL berikut di Supabase SQL Editor:</strong>
+      <pre style="background:#1e1e1e;color:#d4d4d4;padding:12px;border-radius:8px;margin-top:8px;font-size:12px;overflow-x:auto;white-space:pre-wrap;">ALTER TABLE warga ENABLE ROW LEVEL SECURITY;
+ALTER TABLE periode ENABLE ROW LEVEL SECURITY;
+ALTER TABLE iuran ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kerja_bakti ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kas_pengeluaran ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "public_all_warga" ON warga FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "public_all_periode" ON periode FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "public_all_iuran" ON iuran FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "public_all_kerja_bakti" ON kerja_bakti FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "public_all_kas" ON kas_pengeluaran FOR ALL TO anon USING (true) WITH CHECK (true);</pre>
+      Setelah dijalankan, <a href="javascript:location.reload()" style="color:#92400e;font-weight:700">klik di sini untuk refresh</a>.
+    </div>` : ''}
+    <div class="config-panel">
+      <h4>⚙️ Periksa Konfigurasi</h4>
+      <div class="config-fields">
+        <div class="form-group"><label>Supabase Project URL</label><input id="cfg-url" class="form-control" value="${SUPABASE_URL}"></div>
+        <div class="form-group"><label>Supabase Anon Key</label><input id="cfg-key" class="form-control" value="${SUPABASE_KEY}" type="password"></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary" onclick="simpanConfig()">Simpan & Coba Lagi</button>
+          <button class="btn btn-secondary" onclick="testKoneksi()">🔍 Test Koneksi</button>
+        </div>
+      </div>
+      <div id="test-result" style="margin-top:12px;"></div>
+    </div>`;
+}
+
+async function testKoneksi() {
+  const url = document.getElementById('cfg-url').value.trim();
+  const key = document.getElementById('cfg-key').value.trim();
+  const el = document.getElementById('test-result');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div> Menguji koneksi...</div>';
+  try {
+    const client = window.supabase.createClient(url, key);
+    const { data, error } = await client.from('warga').select('id').limit(1);
+    if (error) {
+      el.innerHTML = `<div class="alert" style="background:#fee2e2;color:#991b1b;">❌ Error: <strong>${error.message}</strong> (code: ${error.code})</div>`;
+    } else {
+      el.innerHTML = `<div class="alert alert-success">✅ Koneksi berhasil! Ditemukan ${data?.length ?? 0} baris. <a href="javascript:location.reload()">Refresh halaman</a>.</div>`;
+    }
+  } catch(e) {
+    el.innerHTML = `<div class="alert" style="background:#fee2e2;color:#991b1b;">❌ Gagal: ${e.message}</div>`;
+  }
+}
+</script>
+</body>
+</html>
